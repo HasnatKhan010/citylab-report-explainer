@@ -106,6 +106,27 @@ docker compose up --build
 
 Open `http://localhost:8000`. Docker needs no cloud account: with no provider key the app uses the reviewed wording templates and every classification still runs. To try an optional free-tier provider, copy `.env.example` to `.env` and add your own key. `.env` is ignored by Git; never commit a real key.
 
+## Deploy to Vercel
+
+The repository carries a serverless entry point at `api/index.py` that exposes the same
+ASGI app the container runs, and `vercel.json` rewrites every path to it and bundles the
+reference files the app reads.
+
+```powershell
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+The project needs no environment variables to run: with no provider key the reviewed
+wording templates are used and every classification still happens. To enable the
+optional wording layer, add `GEMINI_API_KEY` (or `GROQ_API_KEY` / `OPENROUTER_API_KEY`)
+under Project Settings, Environment Variables, and redeploy.
+
+Vercel builds this project on Python 3.12. If a build ever selects an older runtime,
+set the Python version in Project Settings; the Pydantic models use `X | None`
+annotations that need 3.10 or newer.
+
 ## LLM use and tool rules
 
 The rulebook allows free-tier models only. Provider order is configurable in `.env`: Gemini (the tokens the organizers provide on the day), then Groq, then a free OpenRouter model. No model is trained or fine-tuned here, and no pre-built template or earlier project is used. The HTTP client runs at temperature zero with request timeouts, bounded retries with jitter, honours `Retry-After`, opens a short-lived circuit breaker after repeated failures, and caches successful responses by prompt hash, so a free-tier rate limit degrades gracefully instead of failing the request.
