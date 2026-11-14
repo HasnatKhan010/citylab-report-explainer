@@ -127,13 +127,13 @@ def classify_result(original_name: str, value: Decimal | str, unit: str, age: in
         assert low is not None and high is not None
         if ENDPOINTS_INCLUSIVE and low <= value_num <= high:
             result["status"] = "normal"
-            result["reason"] = f"Value is within the listed reference interval {low}–{high} {row.unit}."
+            result["reason"] = f"Value is within the listed reference interval {low}-{high} {row.unit}."
         elif value_num < low:
             result["status"] = "low"
-            result["reason"] = f"Value is below the listed reference interval {low}–{high} {row.unit}."
+            result["reason"] = f"Value is below the listed reference interval {low}-{high} {row.unit}."
         else:
             result["status"] = "high"
-            result["reason"] = f"Value is above the listed reference interval {low}–{high} {row.unit}."
+            result["reason"] = f"Value is above the listed reference interval {low}-{high} {row.unit}."
         result["explanation"] = ""  # Set below after status is known.
         status_words = {"normal": "within", "low": "below", "high": "above"}
         result["explanation"] = f"The reported value is {status_words[result['status']]} the range listed in {row.source_file}; this comparison is not a diagnosis."

@@ -67,7 +67,7 @@ def analyze_patient(patient_id: str, corpus: Corpus | None = None) -> dict:
             row = _clarification_result(item.original_name, item.value, item.unit, canonical_name(item.original_name, corpus), question or "")
         elif age_outside:
             canonical = canonical_name(item.original_name, corpus)
-            reason = f"Age {patient.age} is outside the age bands supported by the files ({bounds[0]}–{bounds[1]} years)."
+            reason = f"Age {patient.age} is outside the age bands supported by the files ({bounds[0]}-{bounds[1]} years)."
             row = {
                 "original_name": item.original_name,
                 "canonical_name": canonical,
