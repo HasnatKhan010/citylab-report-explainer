@@ -59,6 +59,37 @@ def _parse_sex(raw: str | None) -> str | None:
     return None
 
 
+_METADATA_LABELS = (
+    "patient full name", "patient name", "recorded age", "age", "biological sex", "sex",
+    "gender", "medical record number", "mrn", "patient id", "date of issuance", "date",
+    "report date", "collected", "specimen", "sample", "referred by", "referring physician",
+    "physician", "doctor", "lab id", "accession", "address", "contact", "phone",
+)
+
+
+def _is_metadata_label(name: str) -> bool:
+    """Report header fields are not test results, whatever layout they appear in."""
+    cleaned = re.sub(r"\s*\(.*?\)\s*", " ", _strip_md(name)).strip().casefold()
+    return cleaned.rstrip(":").strip() in _METADATA_LABELS
+
+
+def _results_section(text: str) -> str:
+    """Return the part of a report that holds results.
+
+    The corpus heads that section "SECTION III: ANALYTICAL RESULTS". An unseen report
+    may head it differently, so a heading that merely mentions results is accepted next,
+    and failing that the whole report is scanned: the result patterns require a value,
+    and the demographic labels are excluded where they are matched.
+    """
+    exact = re.split(r"(?im)^\s*#+\s*SECTION III:\s*ANALYTICAL RESULTS\s*$", text, maxsplit=1)
+    if len(exact) == 2:
+        return exact[1]
+    loose = re.split(r"(?im)^\s*#+.*\bRESULTS?\b.*$", text, maxsplit=1)
+    if len(loose) == 2:
+        return loose[1]
+    return text
+
+
 def parse_report_text(
     raw_text: str,
     source_file: str = "pasted report",
@@ -92,8 +123,7 @@ def parse_report_text(
     headings = " ".join(line for line in text.splitlines() if line.lstrip().startswith("#"))
     panel = f"{panel_hint} {headings}"
 
-    result_section = re.split(r"(?im)^\s*##\s*SECTION III:\s*ANALYTICAL RESULTS\s*$", text, maxsplit=1)
-    result_text = result_section[1] if len(result_section) == 2 else ""
+    result_text = _results_section(text)
     results: list[LabResult] = []
     pending_name: str | None = None
     table_header: list[str] | None = None
@@ -147,6 +177,8 @@ def parse_report_text(
 
         arrow = re.match(r"^\s*[-*]?\s*(?:\*\*)?(.+?)(?:\*\*)?\s*->\s*(.*?)\s*$", stripped)
         if arrow:
+            if _is_metadata_label(arrow.group(1)):
+                continue
             value_unit = _parse_value_and_unit(arrow.group(2))
             if value_unit:
                 value, unit = value_unit
@@ -159,7 +191,7 @@ def parse_report_text(
         bullet = re.match(r"^\s*[-*]\s+(?:\*\*)?([^:]+?)(?:\*\*)?\s*:\s*(.*?)\s*$", stripped)
         if bullet:
             test_name = _strip_md(bullet.group(1))
-            if re.search(r"^(?:Patient Full Name|Recorded Age|Biological Sex|Medical Record Number|Date of Issuance)$", test_name, re.I):
+            if _is_metadata_label(test_name):
                 continue
             value_unit = _parse_value_and_unit(bullet.group(2))
             if value_unit:
@@ -171,6 +203,8 @@ def parse_report_text(
         # Plain result form such as `TSH: 2.5 mIU/L`.
         plain_value = re.match(r"^\s*(?![-*])([^:]+?)\s*:\s*(.*?)\s*$", stripped)
         if plain_value:
+            if _is_metadata_label(plain_value.group(1)):
+                continue
             value_unit = _parse_value_and_unit(plain_value.group(2))
             if value_unit:
                 value, unit = value_unit

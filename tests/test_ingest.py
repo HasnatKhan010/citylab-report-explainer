@@ -71,3 +71,42 @@ def test_prompt_injection_in_appendix_is_ignored(tmp_path):
         ("WBC", "6000"),
     ]
 
+
+
+def test_sample_corpus_yields_exactly_the_expected_number_of_results():
+    corpus = load_corpus(DATA)
+    total = sum(len(patient.results) for patient in corpus.patients.values())
+    assert total == 20
+
+
+def test_results_are_found_under_an_unseen_results_heading():
+    from core.ingest import parse_report_text
+
+    report = parse_report_text(
+        "# REPORT\n"
+        "* **Patient Full Name**: A B\n"
+        "* **Recorded Age**: 40\n"
+        "* **Biological Sex**: Male\n"
+        "## Laboratory Results\n"
+        "- Hemoglobin: 12.0 g/dL\n",
+        require_name=False,
+    )
+    assert [result.original_name for result in report.results] == ["Hemoglobin"]
+
+
+def test_header_fields_are_never_read_as_results_when_no_heading_exists():
+    from core.ingest import parse_report_text
+
+    report = parse_report_text(
+        "# REPORT\n"
+        "* **Patient Full Name**: C D\n"
+        "* **Recorded Age**: 40\n"
+        "* **Biological Sex**: Female\n"
+        "* **Medical Record Number (MRN)**: CLD-P099-1\n"
+        "* **Date of Issuance**: 2026-11-13\n"
+        "Referring Physician: Dr Smith\n"
+        "- ALT: 90 U/L\n",
+        require_name=False,
+    )
+    assert [result.original_name for result in report.results] == ["ALT"]
+    assert report.age == 40 and report.sex == "female"
