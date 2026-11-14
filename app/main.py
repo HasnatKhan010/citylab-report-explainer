@@ -12,8 +12,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.ingest import load_corpus
-from core.service import analyze_patient, answer_question
-from llm.explain import explain_results
+from core.service import analyze_patient, analyze_report_text, answer_question
+from llm.explain import explain_results, template_explanations
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -27,6 +27,12 @@ app = FastAPI(title="Medical Lab Report Explainer", version="0.1.0")
 class AnalyzeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     patient_id: str = Field(min_length=1, max_length=32)
+    language: Literal["en", "ur"] = "en"
+
+
+class AnalyzeTextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    report_text: str = Field(min_length=1, max_length=20000)
     language: Literal["en", "ur"] = "en"
 
 
@@ -51,20 +57,14 @@ def patients():
     return [{"patient_id": p.patient_id} for p in sorted(CORPUS.patients.values(), key=lambda p: p.patient_id)]
 
 
-@app.post("/analyze")
-async def analyze(request: AnalyzeRequest):
+async def _with_wording(result: dict, language: str) -> dict:
+    """Attach validated wording, keeping the deterministic result whatever happens."""
     try:
-        result = analyze_patient(request.patient_id, CORPUS, request.language)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Patient ID was not found in the reports.") from exc
-    try:
-        wording = await explain_results(result, CORPUS.glossary, request.language)
+        wording = await explain_results(result, CORPUS.glossary, language)
     except Exception as exc:
         # The classification has already succeeded. Wording failures never discard it.
         logger.warning("Explanation layer unavailable: %s", type(exc).__name__)
-        from llm.explain import template_explanations
-
-        wording = template_explanations(result, request.language)
+        wording = template_explanations(result, language)
     by_name = {item["test"]: item["explanation"] for item in wording["explanations"]}
     for row in result["tests"]:
         row["explanation"] = by_name.get(row["original_name"], row["explanation"])
@@ -75,6 +75,25 @@ async def analyze(request: AnalyzeRequest):
     result["doctor_questions"] = wording["doctor_questions"]
     result["explanation_provider"] = wording["provider"]
     return result
+
+
+@app.post("/analyze")
+async def analyze(request: AnalyzeRequest):
+    try:
+        result = analyze_patient(request.patient_id, CORPUS, request.language)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Patient ID was not found in the reports.") from exc
+    return await _with_wording(result, request.language)
+
+
+@app.post("/analyze-text")
+async def analyze_text(request: AnalyzeTextRequest):
+    """Classify a report the user pasted against the same organizer reference files."""
+    try:
+        result = analyze_report_text(request.report_text, CORPUS, request.language)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return await _with_wording(result, request.language)
 
 
 @app.post("/ask")

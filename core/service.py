@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from core.classify import classify_result
-from core.ingest import DEFAULT_DATA_DIR, load_corpus
+from core.ingest import DEFAULT_DATA_DIR, load_corpus, parse_report_text
 from core.models import Corpus, PatientReport
 from core.names import canonical_name, normalize_name
 from core.plain_language import ATTRIBUTION, describes, doctor_questions, result_meaning
@@ -63,7 +63,28 @@ def analyze_patient(patient_id: str, corpus: Corpus | None = None, language: str
     patient = corpus.patients.get(key)
     if patient is None:
         raise KeyError(f"Unknown patient ID: {patient_id}")
+    return _analyze_report(patient, corpus, language)
 
+
+def analyze_report_text(report_text: str, corpus: Corpus | None = None, language: str = "en") -> dict:
+    """Analyze a report pasted by the user against the same reference files.
+
+    The reference sheets, aliases, and urgent limits still come only from the organizer
+    corpus; the pasted text supplies the results and demographics and nothing else.
+    """
+    corpus = corpus or _default_corpus()
+    patient = parse_report_text(report_text, source_file="pasted report", require_name=False)
+    if patient is None or not patient.results:
+        raise ValueError(
+            "No test results could be read from the pasted report. Each result needs a test "
+            "name and a value, for example 'Hemoglobin: 13.5 g/dL'."
+        )
+    analysis = _analyze_report(patient, corpus, language)
+    analysis["source_file"] = "pasted report"
+    return analysis
+
+
+def _analyze_report(patient: PatientReport, corpus: Corpus, language: str = "en") -> dict:
     needs_clarification, question = _status_for_demographics(patient)
     bounds = supported_age_bounds(corpus)
     age_outside = bool(bounds and patient.age is not None and not (bounds[0] <= patient.age <= bounds[1]))

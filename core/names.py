@@ -35,6 +35,14 @@ def _panel_tokens(panel: str) -> set[str]:
     return {token.casefold() for token in re.split(r"[^A-Za-z0-9]+", panel) if token}
 
 
+def _names_the_panel(tokens: set[str], qualifier: str) -> bool:
+    """Accept the qualifier itself and the panel word built on it, such as Urinalysis."""
+    wanted = qualifier.casefold()
+    if wanted in tokens:
+        return True
+    return len(wanted) >= 5 and any(token.startswith(wanted[:4]) for token in tokens)
+
+
 def resolve_name(name: str, corpus: Corpus, panel: str = "") -> NameMatch:
     """Resolve a reported test name to a canonical analyte, reporting how it matched.
 
@@ -58,7 +66,7 @@ def resolve_name(name: str, corpus: Corpus, panel: str = "") -> NameMatch:
         stripped = _without_noise_words(name)
         for analyte, canonical in ((normalize_name(a), a) for a in canonical_by_key.values()):
             parts = canonical.split()
-            if len(parts) < 2 or parts[0].casefold() not in tokens:
+            if len(parts) < 2 or not _names_the_panel(tokens, parts[0]):
                 continue
             remainder = _without_noise_words(" ".join(parts[1:]))
             if remainder and remainder == stripped:

@@ -59,14 +59,18 @@ def _parse_sex(raw: str | None) -> str | None:
     return None
 
 
-def _parse_report(path: Path) -> PatientReport | None:
-    text = path.read_text(encoding="utf-8", errors="replace")
-    text = re.split(r"(?im)^\s*###\s*APPENDIX\b", text, maxsplit=1)[0]
-    patient_match = re.search(r"(?i)report_P(\d{3})_", path.name)
-    if not patient_match:
-        logger.warning("Skipping report without a patient ID: %s", path.name)
-        return None
-    patient_id = f"P{patient_match.group(1)}"
+def parse_report_text(
+    raw_text: str,
+    source_file: str = "pasted report",
+    patient_id: str | None = None,
+    panel_hint: str = "",
+    require_name: bool = True,
+) -> PatientReport | None:
+    """Parse one report from Markdown text, ignoring anything after its appendix."""
+    text = re.split(r"(?im)^\s*###\s*APPENDIX\b", raw_text, maxsplit=1)[0]
+    if patient_id is None:
+        found = re.search(r"(?i)\bP(\d{3})\b", text)
+        patient_id = f"P{found.group(1)}" if found else "PASTED"
 
     def field(label: str) -> str | None:
         label_pattern = re.compile(rf"^{label}\s*:\s*(.*?)\s*$", re.I)
@@ -86,7 +90,7 @@ def _parse_report(path: Path) -> PatientReport | None:
 
     # Panel context lets a short name such as "pH Level" resolve to "Urine pH".
     headings = " ".join(line for line in text.splitlines() if line.lstrip().startswith("#"))
-    panel = f"{path.stem} {headings}"
+    panel = f"{panel_hint} {headings}"
 
     result_section = re.split(r"(?im)^\s*##\s*SECTION III:\s*ANALYTICAL RESULTS\s*$", text, maxsplit=1)
     result_text = result_section[1] if len(result_section) == 2 else ""
@@ -115,7 +119,7 @@ def _parse_report(path: Path) -> PatientReport | None:
                     raw_value = cells[value_idx]
                     value_unit = _parse_value_and_unit(raw_value)
                     if value_unit is None:
-                        logger.warning("Skipping malformed result row %s:%d", path.name, line_number)
+                        logger.warning("Skipping malformed result row %s:%d", source_file, line_number)
                         continue
                     value, embedded_unit = value_unit
                     unit = cells[unit_idx] if unit_idx is not None and unit_idx < len(cells) else embedded_unit
@@ -123,7 +127,7 @@ def _parse_report(path: Path) -> PatientReport | None:
                         unit = embedded_unit
                     results.append(LabResult(original_name=cells[name_idx], value=value, unit=unit, line=line_number))
                 except (StopIteration, IndexError, ValueError):
-                    logger.warning("Skipping malformed table row %s:%d", path.name, line_number)
+                    logger.warning("Skipping malformed table row %s:%d", source_file, line_number)
                 continue
 
         plain = re.match(r"(?i)^\s*(?:[-*]\s*)?(?:\*\*)?(Test Conducted|Test Name|Test)\s*:\s*(.*?)\s*(?:\*\*)?\s*$", stripped)
@@ -137,7 +141,7 @@ def _parse_report(path: Path) -> PatientReport | None:
                 value, unit = value_unit
                 results.append(LabResult(original_name=pending_name, value=value, unit=unit, line=line_number))
             else:
-                logger.warning("Skipping malformed plain result %s:%d", path.name, line_number)
+                logger.warning("Skipping malformed plain result %s:%d", source_file, line_number)
             pending_name = None
             continue
 
@@ -148,7 +152,7 @@ def _parse_report(path: Path) -> PatientReport | None:
                 value, unit = value_unit
                 results.append(LabResult(original_name=_strip_md(arrow.group(1)), value=value, unit=unit, line=line_number))
             else:
-                logger.warning("Skipping malformed arrow result %s:%d", path.name, line_number)
+                logger.warning("Skipping malformed arrow result %s:%d", source_file, line_number)
             continue
 
         # Bullet result: - Name: 5.2 unit, with optional Markdown emphasis.
@@ -162,7 +166,7 @@ def _parse_report(path: Path) -> PatientReport | None:
                 value, unit = value_unit
                 results.append(LabResult(original_name=test_name, value=value, unit=unit, line=line_number))
             else:
-                logger.warning("Skipping malformed bullet result %s:%d", path.name, line_number)
+                logger.warning("Skipping malformed bullet result %s:%d", source_file, line_number)
 
         # Plain result form such as `TSH: 2.5 mIU/L`.
         plain_value = re.match(r"^\s*(?![-*])([^:]+?)\s*:\s*(.*?)\s*$", stripped)
@@ -173,8 +177,10 @@ def _parse_report(path: Path) -> PatientReport | None:
                 results.append(LabResult(original_name=_strip_md(plain_value.group(1)), value=value, unit=unit, line=line_number))
 
     if not name:
-        logger.warning("Skipping report with no patient name: %s", path.name)
-        return None
+        if require_name:
+            logger.warning("Skipping report with no patient name: %s", source_file)
+            return None
+        name = "(name not stated)"
     return PatientReport(
         patient_id=patient_id,
         name=name,
@@ -182,9 +188,22 @@ def _parse_report(path: Path) -> PatientReport | None:
         age_raw=age_raw,
         sex=sex,  # type: ignore[arg-type]
         sex_raw=sex_raw,
-        source_file=path.name,
+        source_file=source_file,
         panel=panel,
         results=results,
+    )
+
+
+def _parse_report(path: Path) -> PatientReport | None:
+    patient_match = re.search(r"(?i)report_P(\d{3})_", path.name)
+    if not patient_match:
+        logger.warning("Skipping report without a patient ID: %s", path.name)
+        return None
+    return parse_report_text(
+        path.read_text(encoding="utf-8", errors="replace"),
+        source_file=path.name,
+        patient_id=f"P{patient_match.group(1)}",
+        panel_hint=path.stem,
     )
 
 
