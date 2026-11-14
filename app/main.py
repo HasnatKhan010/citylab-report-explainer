@@ -54,7 +54,7 @@ def patients():
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest):
     try:
-        result = analyze_patient(request.patient_id, CORPUS)
+        result = analyze_patient(request.patient_id, CORPUS, request.language)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Patient ID was not found in the reports.") from exc
     try:

@@ -13,8 +13,8 @@ def _cell(value: object) -> str:
 def verification_table() -> str:
     corpus = load_corpus()
     output = [
-        "| Patient | Age | Sex | Test | Value | Unit | Status | Reason |",
-        "|---|---:|---|---|---:|---|---|---|",
+        "| Patient | Age | Sex | Test | Value | Unit | Matched as | Conversion | Status | Reason |",
+        "|---|---:|---|---|---:|---|---|---|---|---|",
     ]
     for patient_id, patient in sorted(corpus.patients.items()):
         analysis = analyze_patient(patient_id, corpus)
@@ -22,11 +22,15 @@ def verification_table() -> str:
         sex = patient.sex if patient.sex is not None else (patient.sex_raw or "missing")
         rows = analysis["tests"]
         if not rows:
-            output.append("| " + " | ".join(map(_cell, [f"{patient_id} {patient.name}", age, sex, "—", "—", "—", "no_results", "No structured results were parsed."])) + " |")
+            output.append("| " + " | ".join(map(_cell, [f"{patient_id} {patient.name}", age, sex, "—", "—", "—", "—", "—", "no_results", "No structured results were parsed."])) + " |")
         for row in rows:
+            shown = row.get("conversion_shown")
             output.append("| " + " | ".join(map(_cell, [
                 f"{patient_id} {patient.name}", age, sex, row["original_name"], row["value"],
-                row["original_unit"] or "(none)", row["status"], row["reason"],
+                row["original_unit"] or "(none)",
+                row["canonical_name"] or "unmatched",
+                shown["working"] if shown else "none needed",
+                row["status"], row["reason"],
             ])) + " |")
     return "\n".join(output)
 

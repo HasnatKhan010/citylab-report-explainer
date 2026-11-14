@@ -29,7 +29,7 @@ def main() -> int:
     try:
         if args.command == "analyze":
             corpus = load_corpus()
-            analysis = analyze_patient(args.patient_id, corpus)
+            analysis = analyze_patient(args.patient_id, corpus, args.language)
             wording = asyncio.run(explain_results(analysis, corpus.glossary, args.language))
             for row, explanation in zip(analysis["tests"], wording["explanations"]):
                 row["explanation"] = explanation["explanation"]
