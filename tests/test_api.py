@@ -3,6 +3,7 @@ import asyncio
 import httpx
 
 from app.main import app
+from core.classify import BOUNDARY_ASSUMPTION
 from adapters.scorer import analyze as scorer_analyze, ask as scorer_ask
 
 
@@ -26,7 +27,7 @@ def test_health_patient_list_and_active_patient_analyze():
     assert response.status_code == 200
     data = response.json()
     assert data["tests"][0]["status"] == "normal"
-    assert "sheet does not state a boundary rule; hematology convention applied." in data["tests"][0]["explanation"]
+    assert BOUNDARY_ASSUMPTION in data["tests"][0]["explanation"]
     assert data["explanation_provider"] == "templates"
 
 

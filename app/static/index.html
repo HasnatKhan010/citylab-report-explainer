@@ -4,107 +4,431 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CityLab Report Explainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: light; --ink:#172a3a; --muted:#617385; --line:#dce5ec; --paper:#fff; --wash:#f2f6f8; --blue:#175e72; }
-    * { box-sizing:border-box }
-    body { margin:0; font:16px/1.5 system-ui,Segoe UI,sans-serif; color:var(--ink); background:var(--wash) }
-    header { background:#123b4a; color:white; padding:22px max(20px,calc((100vw - 1160px)/2)); }
-    header h1 { margin:0; font-size:1.45rem; letter-spacing:.01em }
-    header p { margin:5px 0 0; color:#d4e8ee; max-width:70ch }
-    main { max-width:1160px; margin:24px auto; padding:0 18px 42px }
-    .toolbar,.panel,.results { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:0 5px 20px #163b4a0a; }
-    .toolbar { display:flex; gap:14px; align-items:end; flex-wrap:wrap }
-    label { display:grid; gap:6px; font-weight:650; color:#314859 }
-    select,input,button { font:inherit; border-radius:9px; border:1px solid #bdccd6; padding:10px 12px; background:white; color:var(--ink) }
-    select { min-width:180px }
-    button { cursor:pointer; background:var(--blue); border-color:var(--blue); color:white; font-weight:650 }
-    button.secondary { background:white; color:var(--blue) }
-    button:disabled { opacity:.55; cursor:wait }
-    #patientSummary { margin:18px 0 0; color:var(--muted) }
-    #urgent { display:none; margin:16px 0; padding:14px 16px; border-radius:11px; color:#78250e; background:#fff0e8; border:1px solid #f2b69b; font-weight:750 }
-    .results { margin-top:16px; overflow:hidden; padding:0 }
-    .results h2,.panel h2 { font-size:1.08rem; margin:0 0 12px }
-    .results h2 { padding:18px 18px 0 }
-    .tableWrap { overflow:auto }
-    table { width:100%; border-collapse:collapse; min-width:700px }
-    th,td { text-align:left; vertical-align:top; padding:12px 14px; border-top:1px solid var(--line) }
-    th { font-size:.82rem; color:var(--muted); background:#f8fafb; text-transform:uppercase; letter-spacing:.04em }
-    td small { display:block; color:var(--muted); margin-top:4px }
-    .badge { display:inline-block; border-radius:999px; padding:3px 9px; font-size:.82rem; font-weight:750; text-transform:capitalize; white-space:nowrap }
-    .normal { color:#126139; background:#e4f5eb }.low,.high { color:#81540b; background:#fff3d5 }.urgent { color:#8c260d; background:#ffe4d9 }.cannot_classify,.needs_clarification { color:#4f5875; background:#eceef8 }
-    details { margin-top:6px; color:var(--muted); font-size:.9rem }
-    .columns { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px }
-    .panel { margin-top:16px }
-    .columns .panel { margin:0 }
-    .panel ul { margin:0; padding-left:20px }
-    .panel li+li { margin-top:7px }
-    #askForm { display:flex; gap:8px; flex-wrap:wrap }
-    #pastedReport { width:100%; font:14px/1.5 ui-monospace,Consolas,monospace; border:1px solid #bdccd6; border-radius:9px; padding:10px 12px; resize:vertical }
-    #pastePanel p { margin:0 0 10px; color:var(--muted); font-size:.92rem }
-    #pastePanel button { margin-top:10px }
-    #askQuestion { flex:1; min-width:240px }
-    #answer { white-space:pre-wrap; margin-top:12px }
-    #disclaimer { color:var(--muted); font-size:.9rem; margin:16px 2px }
-    [dir="rtl"] .tableWrap, [dir="rtl"] .columns, [dir="rtl"] .panel { text-align:right }
-    @media(max-width:720px) { .columns { grid-template-columns:1fr } main { margin-top:14px } }
-    @media print { body { background:white } header { background:white; color:var(--ink); padding:0 0 10px } header p { color:var(--muted) } .toolbar,#askPanel,button { display:none!important } main { margin:0; max-width:none; padding:0 } .panel,.results { box-shadow:none; break-inside:avoid } }
+    :root{
+      color-scheme: dark;
+      --ink:#0a0d24;
+      --ink-2:#121735;
+      --haze:rgba(255,255,255,.055);
+      --haze-2:rgba(255,255,255,.085);
+      --edge:rgba(160,180,255,.16);
+      --text:#e8ecff;
+      --text-dim:#a2abd6;
+      --text-faint:#747ea8;
+      --normal:#46e0a8;
+      --low:#5ec8ff;
+      --high:#ffb24d;
+      --urgent:#ff5f74;
+      --unknown:#8d97c4;
+      --ask:#c38cff;
+      --font: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+      --urdu: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:var(--font); color:var(--text);
+      background:var(--ink); line-height:1.55; overflow-x:hidden;
+    }
+    /* Depth: three slow light fields behind a dark glass console. */
+    .field{position:fixed; inset:-30vmax; z-index:0; pointer-events:none; filter:blur(90px); opacity:.55}
+    .field i{position:absolute; display:block; border-radius:50%}
+    .f1{background:radial-gradient(circle,#2b4cff 0%,transparent 62%); width:62vmax;height:62vmax; top:2%; left:-6%; animation:drift1 34s ease-in-out infinite alternate}
+    .f2{background:radial-gradient(circle,#00c2a8 0%,transparent 62%); width:48vmax;height:48vmax; top:46%; left:58%; animation:drift2 41s ease-in-out infinite alternate}
+    .f3{background:radial-gradient(circle,#7b2bff 0%,transparent 62%); width:44vmax;height:44vmax; top:66%; left:12%; animation:drift3 47s ease-in-out infinite alternate}
+    @keyframes drift1{to{transform:translate3d(7vmax,5vmax,0) scale(1.12)}}
+    @keyframes drift2{to{transform:translate3d(-9vmax,-6vmax,0) scale(1.08)}}
+    @keyframes drift3{to{transform:translate3d(5vmax,-8vmax,0) scale(1.15)}}
+    .grid{position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.3;
+      background-image:linear-gradient(var(--edge) 1px,transparent 1px),linear-gradient(90deg,var(--edge) 1px,transparent 1px);
+      background-size:72px 72px; mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 25%,transparent 78%)}
+
+    .masthead,.console{position:relative; z-index:1}
+    .masthead{display:flex; flex-wrap:wrap; gap:20px; align-items:flex-end; justify-content:space-between;
+      max-width:1480px; margin:0 auto; padding:34px 28px 20px}
+    .brand h1{font-size:clamp(1.7rem,2.6vw,2.5rem); font-weight:700; letter-spacing:-.025em; margin:0; line-height:1.05}
+    .brand h1 em{font-style:normal; color:var(--text-dim); font-weight:400}
+    .tagline{margin:8px 0 0; color:var(--text-dim); max-width:56ch; font-size:.97rem}
+    .strip{display:flex; gap:9px; flex-wrap:wrap}
+    .chip{display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:999px;
+      background:var(--haze); border:1px solid var(--edge); font-size:.8rem; color:var(--text-dim); white-space:nowrap}
+    .chip b{color:var(--text); font-weight:600}
+    .dot{width:7px;height:7px;border-radius:50%;background:var(--normal); box-shadow:0 0 0 0 rgba(70,224,168,.55); animation:ping 2.6s ease-out infinite}
+    @keyframes ping{70%{box-shadow:0 0 0 9px rgba(70,224,168,0)}100%{box-shadow:0 0 0 0 rgba(70,224,168,0)}}
+
+    .console{display:grid; grid-template-columns:352px minmax(0,1fr); gap:22px;
+      max-width:1480px; margin:0 auto; padding:10px 28px 64px; align-items:start}
+    .rail{display:grid; gap:16px; position:sticky; top:20px}
+    .panel{background:linear-gradient(180deg,var(--haze-2),var(--haze)); border:1px solid var(--edge);
+      border-radius:18px; padding:20px; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
+      box-shadow:0 24px 60px -28px #000, inset 0 1px 0 rgba(255,255,255,.07)}
+    .panel h2{margin:0 0 15px; font-size:.95rem; font-weight:600; letter-spacing:-.01em}
+    .panel p.hint{margin:0 0 12px; color:var(--text-faint); font-size:.84rem}
+
+    label{display:grid; gap:7px; margin-bottom:13px; font-size:.84rem; color:var(--text-dim)}
+    select,input,textarea,button{font:inherit; color:var(--text); border-radius:11px;
+      border:1px solid var(--edge); background:rgba(10,13,36,.55); padding:11px 13px; width:100%}
+    select{appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--text-dim) 50%),linear-gradient(135deg,var(--text-dim) 50%,transparent 50%);
+      background-position:calc(100% - 19px) 50%,calc(100% - 13px) 50%; background-size:6px 6px,6px 6px; background-repeat:no-repeat; cursor:pointer}
+    textarea{font-family:var(--mono); font-size:.82rem; resize:vertical; min-height:124px; line-height:1.6}
+    select:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid #7aa2ff; outline-offset:2px}
+    .btnrow{display:flex; gap:9px; margin-top:4px}
+    button{cursor:pointer; font-weight:600; border:1px solid transparent;
+      background:linear-gradient(180deg,#3f6dff,#2b4ae0); box-shadow:0 10px 24px -12px #2b4ae0}
+    button:hover{filter:brightness(1.09)}
+    button.ghost{background:rgba(255,255,255,.05); border-color:var(--edge); box-shadow:none; color:var(--text-dim)}
+    button:disabled{opacity:.5; cursor:progress}
+
+    .who{display:grid; gap:3px}
+    .who .name{font-size:1.18rem; font-weight:600; letter-spacing:-.015em}
+    .who .meta{font-family:var(--mono); font-size:.82rem; color:var(--text-dim)}
+    .who .src{font-size:.78rem; color:var(--text-faint); word-break:break-all}
+
+    .stream{display:grid; gap:16px; min-width:0}
+    .alert{display:none; gap:13px; align-items:flex-start; padding:16px 19px; border-radius:16px;
+      background:linear-gradient(135deg,rgba(255,95,116,.18),rgba(255,95,116,.07)); border:1px solid rgba(255,95,116,.42);
+      box-shadow:0 0 42px -16px rgba(255,95,116,.6)}
+    .alert.on{display:flex}
+    .alert svg{flex:none; margin-top:2px}
+    .alert div{font-weight:600}
+    .alert small{display:block; font-weight:400; color:var(--text-dim); margin-top:3px}
+
+    .cards{display:grid; gap:14px}
+    .card{position:relative; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:26px;
+      background:linear-gradient(180deg,var(--haze-2),var(--haze)); border:1px solid var(--edge);
+      border-radius:18px; padding:20px 22px 20px 26px; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
+      box-shadow:0 26px 60px -34px #000, inset 0 1px 0 rgba(255,255,255,.06); overflow:hidden}
+    .card::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent,var(--unknown))}
+    .card::after{content:""; position:absolute; left:0; top:0; bottom:0; width:160px; pointer-events:none;
+      background:linear-gradient(90deg,color-mix(in srgb,var(--accent,var(--unknown)) 16%,transparent),transparent)}
+    .card.normal{--accent:var(--normal)} .card.low{--accent:var(--low)} .card.high{--accent:var(--high)}
+    .card.urgent{--accent:var(--urgent)} .card.cannot_classify{--accent:var(--unknown)} .card.needs_clarification{--accent:var(--ask)}
+    .card>*{position:relative}
+    .head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:4px}
+    .tname{font-size:1.1rem; font-weight:600; letter-spacing:-.015em}
+    .alias{font-size:.8rem; color:var(--text-faint)}
+    .badge{flex:none; font-size:.74rem; font-weight:700; letter-spacing:.02em; padding:5px 11px; border-radius:999px;
+      color:var(--accent,var(--unknown)); background:color-mix(in srgb,var(--accent,var(--unknown)) 15%,transparent);
+      border:1px solid color-mix(in srgb,var(--accent,var(--unknown)) 42%,transparent)}
+    .prose{margin:10px 0 0; color:var(--text-dim); font-size:.92rem; max-width:68ch}
+    .prose b{color:var(--text); font-weight:600}
+    .prose p{margin:0 0 7px}
+    details{margin-top:12px}
+    summary{cursor:pointer; color:var(--text-faint); font-size:.82rem; width:fit-content}
+    .trace{margin:9px 0 0; padding:12px 14px; border-radius:11px; background:rgba(5,7,22,.55);
+      border:1px solid var(--edge); font-family:var(--mono); font-size:.76rem; color:var(--text-dim); line-height:1.75; word-break:break-word}
+    .trace div+div{margin-top:5px}
+
+    .readout{display:grid; gap:9px; align-content:start}
+    .value{font-family:var(--mono); font-size:1.75rem; font-weight:500; letter-spacing:-.03em; line-height:1.1}
+    .value span{font-size:.92rem; color:var(--text-dim); margin-inline-start:5px}
+    .conv{font-family:var(--mono); font-size:.76rem; color:var(--text-faint); line-height:1.6}
+    .scale{margin-top:3px}
+    .track{position:relative; height:9px; border-radius:999px; background:rgba(5,7,22,.72); border:1px solid var(--edge); overflow:hidden}
+    .band{position:absolute; top:0; bottom:0; background:linear-gradient(180deg,rgba(70,224,168,.55),rgba(70,224,168,.3))}
+    .mark{position:absolute; top:50%; width:13px; height:13px; margin:-6.5px 0 0 -6.5px; border-radius:50%;
+      background:var(--accent,var(--unknown)); border:2px solid var(--ink); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,var(--unknown)) 30%,transparent)}
+    .ends{display:flex; justify-content:space-between; margin-top:7px; font-family:var(--mono); font-size:.72rem; color:var(--text-faint)}
+    .ends b{color:var(--text-dim); font-weight:500}
+
+    .twoup{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+    .twoup .panel{height:100%}
+    ol,ul{margin:0; padding-inline-start:19px; color:var(--text-dim); font-size:.9rem}
+    li+li{margin-top:9px}
+    .empty{color:var(--text-faint); font-size:.9rem; margin:0}
+    #answer{margin-top:12px; font-size:.89rem; color:var(--text-dim); white-space:pre-wrap; min-height:1.2em}
+    .foot{color:var(--text-faint); font-size:.8rem; max-width:92ch; margin:4px 2px 0}
+
+    /* One orchestrated moment: results tilt up into place when a report is read. */
+    @media(prefers-reduced-motion:no-preference){
+      .card{animation:deal .5s cubic-bezier(.2,.75,.3,1) backwards; transform-origin:top center}
+      @keyframes deal{from{opacity:0; transform:perspective(1100px) rotateX(-13deg) translateY(22px)}}
+      .field i{will-change:transform}
+    }
+    @media(prefers-reduced-motion:reduce){.field{animation:none} .dot{animation:none}}
+
+    [dir="rtl"]{font-family:var(--urdu),var(--font)}
+    [dir="rtl"] .value,[dir="rtl"] .conv,[dir="rtl"] .trace,[dir="rtl"] .ends,[dir="rtl"] textarea,[dir="rtl"] .meta{font-family:var(--mono)}
+    [dir="rtl"] .card::before{left:auto; right:0}
+    [dir="rtl"] .card::after{left:auto; right:0; transform:scaleX(-1)}
+    [dir="rtl"] .prose{line-height:2.1}
+
+    @media(max-width:1080px){
+      .console{grid-template-columns:1fr}
+      .rail{position:static}
+      .card{grid-template-columns:1fr; gap:16px}
+      .readout{order:-1}
+    }
+    @media(max-width:620px){.masthead,.console{padding-inline:16px} .twoup{grid-template-columns:1fr}}
+    @media print{
+      .field,.grid,.rail,button,#askPanel{display:none!important}
+      body{background:#fff; color:#111}
+      .console{grid-template-columns:1fr; padding:0}
+      .card,.panel{background:#fff; border:1px solid #ccd; box-shadow:none; break-inside:avoid; backdrop-filter:none}
+      .prose,.ends,.conv,.trace,ul,ol{color:#333}
+      .masthead{padding:0 0 12px}
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>CityLab Medical Report Explainer</h1>
-    <p id="subtitle">A files-only comparison of one active patient's report with the supplied laboratory ranges.</p>
-  </header>
-  <main>
-    <section class="toolbar" aria-label="Report controls">
-      <label><span id="patientLabel">Active report</span><select id="patient"></select></label>
-      <label><span id="languageLabel">Explanation language</span><select id="language"><option value="en">English</option><option value="ur">اردو</option></select></label>
-      <button id="analyze">Analyze report</button>
-      <button id="print" class="secondary" type="button">Print summary</button>
-    </section>
-    <p id="patientSummary"></p>
-    <div id="urgent" role="alert"></div>
-    <section class="results">
-      <h2 id="resultsTitle">Test results</h2>
-      <div class="tableWrap"><table>
-        <thead><tr><th>Test</th><th>Value</th><th>Status</th><th>Explanation</th></tr></thead>
-        <tbody id="resultsBody"></tbody>
-      </table></div>
-    </section>
-    <div class="columns">
-      <section class="panel" id="attentionPanel"><h2>Needs attention</h2><ul id="attentionList"></ul></section>
-      <section class="panel" id="questionsPanel"><h2>Questions for the doctor</h2><ul id="doctorQuestions"></ul></section>
+  <div class="field" aria-hidden="true"><i class="f1"></i><i class="f2"></i><i class="f3"></i></div>
+  <div class="grid" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <div class="brand">
+      <h1 id="title">CityLab Report Explainer</h1>
+      <p class="tagline" id="tagline">Every value is read against the lab's own reference sheets, shown on the scale it was judged by, and explained in plain words. It never diagnoses.</p>
     </div>
-    <section class="panel" id="pastePanel">
-      <h2>Explain another report</h2>
-      <p id="pasteHint">Paste a report that is not in this corpus. It is compared with the same reference sheets, aliases, and urgent limits, and nothing is stored.</p>
-      <textarea id="pastedReport" rows="7" maxlength="20000" placeholder="## SECTION III: ANALYTICAL RESULTS&#10;- Hemoglobin: 13.5 g/dL"></textarea>
-      <button id="analyzePasted" type="button">Explain pasted report</button>
+    <div class="strip" id="strip"></div>
+  </header>
+
+  <main class="console">
+    <aside class="rail">
+      <section class="panel">
+        <h2 id="controlsTitle">Choose a report</h2>
+        <label><span id="patientLabel">Patient report</span><select id="patient"></select></label>
+        <label><span id="languageLabel">Language</span><select id="language"><option value="en">English</option><option value="ur">اردو</option></select></label>
+        <div class="btnrow">
+          <button id="analyze">Read report</button>
+          <button id="print" class="ghost" type="button">Print</button>
+        </div>
+      </section>
+
+      <section class="panel" id="whoPanel">
+        <h2 id="whoTitle">Patient</h2>
+        <div class="who" id="who"></div>
+      </section>
+
+      <section class="panel" id="pastePanel">
+        <h2 id="pasteTitle">Explain another report</h2>
+        <p class="hint" id="pasteHint">Paste a report that is not in this corpus. It is read against the same reference sheets, and nothing is stored.</p>
+        <textarea id="pastedReport" maxlength="20000" spellcheck="false" placeholder="Recorded Age: 46&#10;Biological Sex: Male&#10;- Hemoglobin: 13.5 g/dL"></textarea>
+        <div class="btnrow"><button id="analyzePasted" type="button">Read pasted report</button></div>
+      </section>
+
+      <section class="panel" id="askPanel">
+        <h2 id="askTitle">Ask about this report</h2>
+        <form id="askForm">
+          <input id="askQuestion" maxlength="1000" placeholder="What does Hemoglobin measure?" required>
+          <div class="btnrow"><button id="askButton">Ask</button></div>
+        </form>
+        <div id="answer" aria-live="polite"></div>
+      </section>
+    </aside>
+
+    <section class="stream">
+      <div class="alert" id="urgent" role="alert">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff5f74" stroke-width="2" stroke-linecap="round"><path d="M12 8v5"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+        <div id="urgentText"></div>
+      </div>
+      <div class="cards" id="results"></div>
+      <div class="twoup">
+        <section class="panel"><h2 id="attentionTitle">Needs attention</h2><ul id="attentionList"></ul></section>
+        <section class="panel"><h2 id="questionsTitle">Questions for the doctor</h2><ol id="doctorQuestions"></ol></section>
+      </div>
+      <p class="foot" id="disclaimer"></p>
     </section>
-    <section class="panel" id="askPanel">
-      <h2>Ask about this active report</h2>
-      <form id="askForm"><input id="askQuestion" maxlength="1000" placeholder="Ask a question about this report" required><button id="askButton">Ask</button></form>
-      <div id="answer" aria-live="polite"></div>
-    </section>
-    <p id="disclaimer"></p>
   </main>
+
   <script>
     const $ = id => document.getElementById(id);
     const strings = {
-      en:{patient:"Active report",language:"Explanation language",analyze:"Analyze report",print:"Print summary",results:"Test results",test:"Test",value:"Value",status:"Status",explanation:"Explanation",attention:"Needs attention",questions:"Questions for the doctor",ask:"Ask about this active report",askButton:"Ask",askPlaceholder:"Ask a question about this report",disclaimer:"This comparison does not diagnose. Only a licensed doctor can diagnose.",subtitle:"A files-only comparison of one active patient's report with the supplied laboratory ranges.",paste:"Explain another report",pasteButton:"Explain pasted report",pasteHint:"Paste a report that is not in this corpus. It is compared with the same reference sheets, aliases, and urgent limits, and nothing is stored."},
-      ur:{patient:"فعال رپورٹ",language:"وضاحت کی زبان",analyze:"رپورٹ دیکھیں",print:"خلاصہ پرنٹ کریں",results:"ٹیسٹ کے نتائج",test:"ٹیسٹ",value:"نتیجہ",status:"حالت",explanation:"وضاحت",attention:"مزید وضاحت درکار",questions:"ڈاکٹر سے پوچھنے کے سوالات",ask:"اس فعال رپورٹ کے بارے میں پوچھیں",askButton:"پوچھیں",askPlaceholder:"اس رپورٹ کے بارے میں سوال کریں",disclaimer:"یہ موازنہ تشخیص نہیں کرتا۔ صرف مستند ڈاکٹر تشخیص کر سکتا ہے۔",subtitle:"ایک فعال مریض کی رپورٹ کا فراہم کردہ لیبارٹری حدود سے موازنہ۔",paste:"کوئی دوسری رپورٹ سمجھیں",pasteButton:"رپورٹ کی وضاحت کریں",pasteHint:"ایسی رپورٹ یہاں چسپاں کریں جو اس مجموعے میں شامل نہیں۔ اس کا موازنہ بھی انہی حوالہ فائلوں سے ہوگا اور کچھ محفوظ نہیں کیا جاتا۔"}
+      en:{
+        title:"CityLab Report Explainer",
+        tagline:"Every value is read against the lab's own reference sheets, shown on the scale it was judged by, and explained in plain words. It never diagnoses.",
+        controls:"Choose a report", patient:"Patient report", language:"Language", analyze:"Read report", print:"Print",
+        who:"Patient", paste:"Explain another report", pasteButton:"Read pasted report",
+        pasteHint:"Paste a report that is not in this corpus. It is read against the same reference sheets, and nothing is stored.",
+        ask:"Ask about this report", askButton:"Ask", askPlaceholder:"What does Hemoglobin measure?",
+        attention:"Needs attention", questions:"Questions for the doctor", none:"Nothing outstanding.",
+        noQuestions:"Every result sits inside its listed range, so there is nothing to raise.",
+        measures:"What this test measures", means:"What this result can mean", source:"Source and rule",
+        matched:"Matched to", converted:"Converted", reports:"reports loaded", wording:"wording", pasted:"pasted report",
+        ageNeeded:"age not given", sexNeeded:"sex not given", reading:"Reading report…"
+      },
+      ur:{
+        title:"سٹی لیب رپورٹ ایکسپلینر",
+        tagline:"ہر نتیجہ لیبارٹری کی اپنی حوالہ فائلوں سے پرکھا جاتا ہے، اسی پیمانے پر دکھایا جاتا ہے، اور سادہ الفاظ میں سمجھایا جاتا ہے۔ یہ تشخیص نہیں کرتا۔",
+        controls:"رپورٹ منتخب کریں", patient:"مریض کی رپورٹ", language:"زبان", analyze:"رپورٹ پڑھیں", print:"پرنٹ",
+        who:"مریض", paste:"کوئی دوسری رپورٹ سمجھیں", pasteButton:"چسپاں رپورٹ پڑھیں",
+        pasteHint:"ایسی رپورٹ یہاں چسپاں کریں جو اس مجموعے میں شامل نہیں۔ اسے انہی حوالہ فائلوں سے پرکھا جائے گا اور کچھ محفوظ نہیں ہوتا۔",
+        ask:"اس رپورٹ کے بارے میں پوچھیں", askButton:"پوچھیں", askPlaceholder:"ہیموگلوبن کیا ناپتا ہے؟",
+        attention:"مزید وضاحت درکار", questions:"ڈاکٹر سے پوچھنے کے سوالات", none:"کوئی بات باقی نہیں۔",
+        noQuestions:"ہر نتیجہ دی گئی حد کے اندر ہے، اس لیے کوئی سوال نہیں بنتا۔",
+        measures:"یہ ٹیسٹ کیا ناپتا ہے", means:"اس نتیجے کا کیا مطلب ہو سکتا ہے", source:"ماخذ اور اصول",
+        matched:"مطابقت", converted:"تبدیلی", reports:"رپورٹیں لوڈ ہوئیں", wording:"الفاظ", pasted:"چسپاں کردہ رپورٹ",
+        ageNeeded:"عمر درج نہیں", sexNeeded:"جنس درج نہیں", reading:"رپورٹ پڑھی جا رہی ہے…"
+      }
     };
-    function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
-    function setLanguage(lang){const s=strings[lang]||strings.en; document.documentElement.lang=lang;document.documentElement.dir=lang==="ur"?"rtl":"ltr";$('patientLabel').textContent=s.patient;$('languageLabel').textContent=s.language;$('analyze').textContent=s.analyze;$('print').textContent=s.print;$('resultsTitle').textContent=s.results;document.querySelectorAll('thead th').forEach((th,i)=>th.textContent=[s.test,s.value,s.status,s.explanation][i]);$('attentionPanel').querySelector('h2').textContent=s.attention;$('questionsPanel').querySelector('h2').textContent=s.questions;$('askPanel').querySelector('h2').textContent=s.ask;$('pastePanel').querySelector('h2').textContent=s.paste;$('analyzePasted').textContent=s.pasteButton;$('pasteHint').textContent=s.pasteHint;$('askButton').textContent=s.askButton;$('askQuestion').placeholder=s.askPlaceholder;$('disclaimer').textContent=s.disclaimer;$('subtitle').textContent=s.subtitle}
-    async function loadPatients(){const r=await fetch('/patients');if(!r.ok)throw new Error('Could not load reports.');const patients=await r.json();$('patient').innerHTML=patients.map(p=>`<option value="${esc(p.patient_id)}">${esc(p.patient_id)}</option>`).join('')}
-    function prepare(){$('resultsBody').innerHTML='';$('urgent').style.display='none';}
-    function render(data){$('patientSummary').textContent=`${data.patient_name} · ${data.age??'Age needed'} · ${data.biological_sex??'Sex needed'}`;const ur=$('language').value==='ur';const statusLabels=ur?{normal:'عام',low:'کم',high:'زیادہ',urgent:'فوری',cannot_classify:'درجہ بندی ممکن نہیں',needs_clarification:'وضاحت درکار'}:{};$('resultsBody').innerHTML=data.tests.map(t=>`<tr><td>${esc(t.original_name)}${t.canonical_name&&t.canonical_name!==t.original_name?`<small>Matched to ${esc(t.canonical_name)}</small>`:''}<details><summary>${ur?'ماخذ اور اصول':'Source and rule'}</summary>${(t.trace||[]).map(x=>`<div>${esc(x)}</div>`).join('')}</details></td><td>${esc(t.value)} ${esc(t.original_unit)}${t.conversion_shown?`<small>${ur?'تبدیلی':'Converted'}: ${esc(t.conversion_shown.working)}</small>`:''}</td><td><span class="badge ${esc(t.status)}">${esc(statusLabels[t.status]||t.status.replaceAll('_',' '))}</span></td><td>${esc(t.explanation)}${t.what_it_measures?`<small><b>${ur?'یہ ٹیسٹ کیا ناپتا ہے':'What this test measures'}:</b> ${esc(t.what_it_measures)}</small>`:''}${t.what_this_result_can_mean?`<small><b>${ur?'اس نتیجے کا کیا مطلب':'What this result can mean'}:</b> ${esc(t.what_this_result_can_mean)}</small>`:''}</td></tr>`).join('');if(data.urgent_warnings.length){$('urgent').innerHTML=data.urgent_warnings.map(w=>esc(w.message)).join('<br>');$('urgent').style.display='block'}const attention=[...(data.cannot_classify||[]).map(x=>`${x.test}: ${x.reason}`)];if(data.clarification_question)attention.push(data.clarification_question);$('attentionList').innerHTML=attention.map(x=>`<li>${esc(x)}</li>`).join('')||`<li>${ur?'کوئی نہیں':'None'}</li>`;$('doctorQuestions').innerHTML=(data.doctor_questions||[]).map(x=>`<li>${esc(x)}</li>`).join('')||`<li>${ur?'کوئی نہیں':'None'}</li>`;$('disclaimer').textContent=(ur?strings.ur.disclaimer:data.disclaimer)+(data.wording_note?' '+data.wording_note:'');}
-    async function request(url,payload,button,failure){prepare();button.disabled=true;try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw new Error(data.detail||failure);render(data);}catch(e){$('patientSummary').textContent=e.message}finally{button.disabled=false}}
-    async function analyze(){const id=$('patient').value;if(!id)return;await request('/analyze',{patient_id:id,language:$('language').value},$('analyze'),'Unable to analyze report.');}
-    async function analyzePasted(){const text=$('pastedReport').value.trim();if(!text)return;await request('/analyze-text',{report_text:text,language:$('language').value},$('analyzePasted'),'Unable to read the pasted report.');}
-    $('analyze').addEventListener('click',analyze);$('patient').addEventListener('change',analyze);$('language').addEventListener('change',()=>{setLanguage($('language').value);analyze()});$('print').addEventListener('click',()=>window.print());$('analyzePasted').addEventListener('click',analyzePasted);
-    $('askForm').addEventListener('submit',async e=>{e.preventDefault();$('answer').textContent='…';try{const r=await fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_id:$('patient').value,question:$('askQuestion').value})});const data=await r.json();if(!r.ok)throw new Error(data.detail||'Unable to answer.');$('answer').textContent=data.answer+'\n'+(data.citations||[]).map(c=>`Source: ${c.source_file}${c.rule?` (${c.rule})`:''}`).join('\n')}catch(err){$('answer').textContent=err.message}});
-    setLanguage('en');loadPatients().then(analyze).catch(e=>{$('patientSummary').textContent=e.message});
+    const statusWords = {
+      en:{normal:"Normal",low:"Low",high:"High",urgent:"Urgent",cannot_classify:"Not classifiable",needs_clarification:"Needs details"},
+      ur:{normal:"عام",low:"کم",high:"زیادہ",urgent:"فوری",cannot_classify:"درجہ بندی ممکن نہیں",needs_clarification:"تفصیل درکار"}
+    };
+    const lang = () => $('language').value;
+    const S = () => strings[lang()] || strings.en;
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+    function setLanguage(){
+      const s = S(), ur = lang() === "ur";
+      document.documentElement.lang = lang();
+      document.documentElement.dir = ur ? "rtl" : "ltr";
+      $('title').textContent = s.title; $('tagline').textContent = s.tagline;
+      $('controlsTitle').textContent = s.controls; $('patientLabel').textContent = s.patient;
+      $('languageLabel').textContent = s.language; $('analyze').textContent = s.analyze;
+      $('print').textContent = s.print; $('whoTitle').textContent = s.who;
+      $('pasteTitle').textContent = s.paste; $('pasteHint').textContent = s.pasteHint;
+      $('analyzePasted').textContent = s.pasteButton; $('askTitle').textContent = s.ask;
+      $('askButton').textContent = s.askButton; $('askQuestion').placeholder = s.askPlaceholder;
+      $('attentionTitle').textContent = s.attention; $('questionsTitle').textContent = s.questions;
+    }
+
+    function chips(data){
+      const s = S(), parts = [`<span class="chip"><span class="dot"></span>${esc(loaded)} ${esc(s.reports)}</span>`];
+      if (data && data.explanation_provider) parts.push(`<span class="chip">${esc(s.wording)} <b>${esc(data.explanation_provider)}</b></span>`);
+      if (data && data.source_file) parts.push(`<span class="chip"><b>${esc(data.source_file)}</b></span>`);
+      $('strip').innerHTML = parts.join('');
+    }
+
+    /* The reference interval drawn to scale, with the patient's value placed on it. */
+    function scaleFor(test){
+      const range = test.range_used;
+      if (!range || range.low === null || range.high === null) return null;
+      const value = Number(test.converted_value);
+      if (!isFinite(value)) return null;
+      const low = Number(range.low), high = Number(range.high);
+      const span = (high - low) || Math.abs(high) || 1;
+      let min = low - span * 0.7, max = high + span * 0.7;
+      if (value < min) min = value - span * 0.3;
+      if (value > max) max = value + span * 0.3;
+      const at = x => Math.max(0, Math.min(100, (x - min) / (max - min) * 100));
+      return {left: at(low), right: at(high), mark: at(value), low, high, unit: test.converted_unit || ""};
+    }
+
+    function readout(test, s){
+      const scale = scaleFor(test);
+      const conversion = test.conversion_shown
+        ? `<div class="conv">${esc(s.converted)}: ${esc(test.conversion_shown.working)}</div>` : "";
+      const bar = scale ? `
+        <div class="scale">
+          <div class="track">
+            <div class="band" style="inset-inline-start:${scale.left}%;width:${Math.max(scale.right - scale.left, 1.5)}%"></div>
+            <div class="mark" style="inset-inline-start:${scale.mark}%"></div>
+          </div>
+          <div class="ends"><span><b>${esc(scale.low)}</b></span><span>${esc(scale.unit)}</span><span><b>${esc(scale.high)}</b></span></div>
+        </div>` : "";
+      return `<div class="readout">
+        <div class="value">${esc(test.value)}<span>${esc(test.original_unit || "")}</span></div>
+        ${conversion}${bar}
+      </div>`;
+    }
+
+    function card(test, index, s){
+      const words = statusWords[lang()] || statusWords.en;
+      const alias = test.canonical_name && test.canonical_name !== test.original_name
+        ? `<div class="alias">${esc(s.matched)} ${esc(test.canonical_name)}</div>` : "";
+      const trace = (test.trace || []).map(step => `<div>${esc(step)}</div>`).join("");
+      return `<article class="card ${esc(test.status)}" style="animation-delay:${index * 55}ms">
+        <div>
+          <div class="head">
+            <div><div class="tname">${esc(test.original_name)}</div>${alias}</div>
+            <span class="badge">${esc(words[test.status] || test.status)}</span>
+          </div>
+          <div class="prose">
+            <p>${esc(test.explanation)}</p>
+            ${test.what_it_measures ? `<p><b>${esc(s.measures)}:</b> ${esc(test.what_it_measures)}</p>` : ""}
+            ${test.what_this_result_can_mean ? `<p><b>${esc(s.means)}:</b> ${esc(test.what_this_result_can_mean)}</p>` : ""}
+          </div>
+          ${trace ? `<details><summary>${esc(s.source)}</summary><div class="trace">${trace}</div></details>` : ""}
+        </div>
+        ${readout(test, s)}
+      </article>`;
+    }
+
+    function render(data){
+      const s = S();
+      const pasted = data.source_file === "pasted report";
+      $('who').innerHTML = `
+        <div class="name">${esc(data.patient_name)}</div>
+        <div class="meta">${esc(data.patient_id)} · ${esc(data.age ?? s.ageNeeded)} · ${esc(data.biological_sex ?? s.sexNeeded)}</div>
+        <div class="src">${pasted ? esc(s.pasted) : esc(data.source_file)}</div>`;
+      $('results').innerHTML = data.tests.map((test, i) => card(test, i, s)).join("");
+
+      const warnings = data.urgent_warnings || [];
+      $('urgent').classList.toggle('on', warnings.length > 0);
+      $('urgentText').innerHTML = warnings
+        .map(w => `<div>${esc(w.message)}<small>${esc(w.test)}</small></div>`).join("");
+
+      const attention = (data.cannot_classify || []).map(x => `${x.test}: ${x.reason}`);
+      if (data.clarification_question) attention.push(data.clarification_question);
+      $('attentionList').innerHTML = attention.length
+        ? attention.map(x => `<li>${esc(x)}</li>`).join("")
+        : `<p class="empty">${esc(s.none)}</p>`;
+
+      const questions = data.doctor_questions || [];
+      $('doctorQuestions').innerHTML = questions.length
+        ? questions.map(q => `<li>${esc(q)}</li>`).join("")
+        : `<p class="empty">${esc(s.noQuestions)}</p>`;
+
+      $('disclaimer').textContent = [data.disclaimer, data.wording_note].filter(Boolean).join(" ");
+      chips(data);
+    }
+
+    let loaded = 0, pending = 0;
+    function clear(){ $('results').innerHTML = ""; $('urgent').classList.remove('on'); }
+
+    async function request(url, payload, button, failure){
+      const mine = ++pending;
+      clear(); button.disabled = true;
+      $('who').innerHTML = `<div class="meta">${esc(S().reading)}</div>`;
+      try{
+        const response = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+        const data = await response.json();
+        if (mine !== pending) return;
+        if (!response.ok) throw new Error(data.detail || failure);
+        render(data);
+      }catch(error){
+        if (mine === pending) $('who').innerHTML = `<div class="meta">${esc(error.message)}</div>`;
+      }finally{ button.disabled = false; }
+    }
+
+    const analyze = () => $('patient').value &&
+      request("/analyze", {patient_id:$('patient').value, language:lang()}, $('analyze'), "Unable to read this report.");
+    const analyzePasted = () => $('pastedReport').value.trim() &&
+      request("/analyze-text", {report_text:$('pastedReport').value.trim(), language:lang()}, $('analyzePasted'), "Unable to read the pasted report.");
+
+    async function loadPatients(){
+      const response = await fetch("/patients");
+      if (!response.ok) throw new Error("Could not load the reports.");
+      const patients = await response.json();
+      loaded = patients.length;
+      $('patient').innerHTML = patients.map(p => `<option value="${esc(p.patient_id)}">${esc(p.patient_id)}</option>`).join("");
+      chips(null);
+    }
+
+    $('analyze').addEventListener('click', analyze);
+    $('patient').addEventListener('change', analyze);
+    $('analyzePasted').addEventListener('click', analyzePasted);
+    $('print').addEventListener('click', () => window.print());
+    $('language').addEventListener('change', () => { setLanguage(); analyze(); });
+    $('askForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      $('answer').textContent = "…";
+      try{
+        const response = await fetch("/ask", {method:"POST", headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({patient_id:$('patient').value, question:$('askQuestion').value})});
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Unable to answer that.");
+        const sources = (data.citations || []).map(c => c.source_file + (c.rule ? ` (${c.rule})` : "")).join("\n");
+        $('answer').textContent = data.answer + (sources ? "\n\n" + sources : "");
+      }catch(error){ $('answer').textContent = error.message; }
+    });
+
+    setLanguage();
+    loadPatients().then(analyze).catch(error => { $('who').innerHTML = `<div class="meta">${esc(error.message)}</div>`; });
   </script>
 </body>
 </html>

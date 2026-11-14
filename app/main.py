@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from core.classify import BOUNDARY_ASSUMPTION
 from core.ingest import load_corpus
 from core.service import analyze_patient, analyze_report_text, answer_question
 from llm.explain import explain_results, template_explanations
@@ -69,7 +70,7 @@ async def _with_wording(result: dict, language: str) -> dict:
     for row in result["tests"]:
         row["explanation"] = by_name.get(row["original_name"], row["explanation"])
         # Preserve the exact boundary assumption text required by the reference rule.
-        note = "sheet does not state a boundary rule; hematology convention applied."
+        note = BOUNDARY_ASSUMPTION
         if note in row["trace"] and note not in row["explanation"]:
             row["explanation"] += " " + note
     result["doctor_questions"] = wording["doctor_questions"]

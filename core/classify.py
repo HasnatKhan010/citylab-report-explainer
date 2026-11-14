@@ -10,7 +10,7 @@ from core.names import resolve_name
 from core.ranges import categorical_reference, select_range
 from core.units import convert_value, normalize_unit
 
-BOUNDARY_ASSUMPTION = "sheet does not state a boundary rule; hematology convention applied."
+BOUNDARY_ASSUMPTION = "The sheet does not state a boundary rule, so the hematology convention is applied."
 CRITICAL_LIMIT_NOTE = (
     "This result sits exactly on a critical limit listed in the files. The urgent-values "
     "directive asks for a warning when a result hits or passes a limit, so please see a "
