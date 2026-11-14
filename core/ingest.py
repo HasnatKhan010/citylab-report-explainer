@@ -157,6 +157,8 @@ def _parse_report(path: Path) -> PatientReport | None:
             if value_unit:
                 value, unit = value_unit
                 results.append(LabResult(original_name=test_name, value=value, unit=unit, line=line_number))
+            else:
+                logger.warning("Skipping malformed bullet result %s:%d", path.name, line_number)
 
         # Plain result form such as `TSH: 2.5 mIU/L`.
         plain_value = re.match(r"^\s*(?![-*])([^:]+?)\s*:\s*(.*?)\s*$", stripped)
