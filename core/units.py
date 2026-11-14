@@ -1,4 +1,4 @@
-"""Unit checking and conversions using explicit factors found in source files."""
+"""Unit checking and conversions using explicit, cited factors."""
 
 from __future__ import annotations
 
@@ -15,10 +15,29 @@ class Conversion(NamedTuple):
     unit: str
     shown: bool
     factor: Decimal | None
+    source: UnitConversion | None = None
+
+
+# mcL, uL, and the micro sign spell the same microlitre; reports mix all three.
+_MICRO_SIGNS = ("\u00b5", "\u03bc")
 
 
 def normalize_unit(unit: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", unit.casefold())
+    """Fold case and punctuation, and treat mc/u/micro-sign spellings as one unit."""
+    text = unit.casefold()
+    for sign in _MICRO_SIGNS:
+        text = text.replace(sign, "u")
+    text = re.sub(r"[^a-z0-9]", "", text)
+    text = text.replace("mc", "u")
+    # A leading multiplication marker, as in "x10^9/L", carries no unit meaning.
+    return re.sub(r"^x", "", text)
+
+
+def tidy(value: Decimal) -> Decimal:
+    """Keep converted values readable without changing which side of a limit they fall on."""
+    quantized = value.quantize(Decimal("0.01"))
+    stripped = quantized.normalize()
+    return stripped if stripped.as_tuple().exponent <= 0 else stripped.quantize(Decimal(1))
 
 
 def convert_value(
@@ -28,15 +47,15 @@ def convert_value(
     analyte: str,
     conversions: list[UnitConversion],
 ) -> Conversion:
-    """Return converted value only for same units or an explicit source-file factor.
+    """Convert only for identical units or an explicit factor supplied by the caller.
 
-    Reverse conversion uses the reciprocal of an explicit forward factor; no medical
-    constants or built-in unit relationships are supplied.
+    Reverse conversion uses the reciprocal of an explicit forward factor. Every factor
+    carries its own source, so the trace can state where the number came from.
     """
     if normalize_unit(from_unit) == normalize_unit(to_unit):
-        return Conversion(True, value, to_unit, False, None)
+        return Conversion(True, value, to_unit, False, None, None)
     if not isinstance(value, Decimal):
-        return Conversion(False, value, from_unit, False, None)
+        return Conversion(False, value, from_unit, False, None, None)
 
     wanted_from = normalize_unit(from_unit)
     wanted_to = normalize_unit(to_unit)
@@ -52,6 +71,5 @@ def convert_value(
             factor = Decimal(1) / entry.factor
         else:
             continue
-        return Conversion(True, value * factor, to_unit, True, factor)
-    return Conversion(False, value, from_unit, False, None)
-
+        return Conversion(True, tidy(value * factor), to_unit, True, factor, entry)
+    return Conversion(False, value, from_unit, False, None, None)

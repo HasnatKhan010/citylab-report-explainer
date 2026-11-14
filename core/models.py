@@ -27,6 +27,7 @@ class PatientReport(BaseModel):
     sex: Literal["male", "female"] | None = None
     sex_raw: str | None = None
     source_file: str
+    panel: str = ""
     results: list[LabResult]
 
 

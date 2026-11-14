@@ -84,6 +84,10 @@ def _parse_report(path: Path) -> PatientReport | None:
     sex_raw = field(r"Biological Sex")
     sex = _parse_sex(sex_raw)
 
+    # Panel context lets a short name such as "pH Level" resolve to "Urine pH".
+    headings = " ".join(line for line in text.splitlines() if line.lstrip().startswith("#"))
+    panel = f"{path.stem} {headings}"
+
     result_section = re.split(r"(?im)^\s*##\s*SECTION III:\s*ANALYTICAL RESULTS\s*$", text, maxsplit=1)
     result_text = result_section[1] if len(result_section) == 2 else ""
     results: list[LabResult] = []
@@ -179,6 +183,7 @@ def _parse_report(path: Path) -> PatientReport | None:
         sex=sex,  # type: ignore[arg-type]
         sex_raw=sex_raw,
         source_file=path.name,
+        panel=panel,
         results=results,
     )
 

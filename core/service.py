@@ -69,9 +69,9 @@ def analyze_patient(patient_id: str, corpus: Corpus | None = None) -> dict:
 
     for item in patient.results:
         if needs_clarification:
-            row = _clarification_result(item.original_name, item.value, item.unit, canonical_name(item.original_name, corpus), question or "")
+            row = _clarification_result(item.original_name, item.value, item.unit, canonical_name(item.original_name, corpus, patient.panel), question or "")
         elif age_outside:
-            canonical = canonical_name(item.original_name, corpus)
+            canonical = canonical_name(item.original_name, corpus, patient.panel)
             reason = f"Age {patient.age} is outside the age bands supported by the files ({bounds[0]}-{bounds[1]} years)."
             row = {
                 "original_name": item.original_name,
@@ -90,7 +90,7 @@ def analyze_patient(patient_id: str, corpus: Corpus | None = None) -> dict:
             }
         else:
             # The demographic gate above guarantees age and sex are present here.
-            row = classify_result(item.original_name, item.value, item.unit, patient.age, patient.sex, corpus)  # type: ignore[arg-type]
+            row = classify_result(item.original_name, item.value, item.unit, patient.age, patient.sex, corpus, patient.panel)  # type: ignore[arg-type]
         rows.append(row)
         if row["status"] == "cannot_classify":
             cannot.append({"test": row["original_name"], "reason": row["reason"]})
