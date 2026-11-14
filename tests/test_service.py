@@ -45,6 +45,8 @@ def test_privacy_refusal_cites_safety_rule_and_q_and_a_uses_active_patient_only(
     assert not answer["refused"]
     assert "13.5" in answer["answer"]
     assert all(citation["source_file"] != "report_P002_Bob_Jones_Liver.md" for citation in answer["citations"])
-    unsupported = answer_question("P001", "What does Hemoglobin measure?", corpus)
-    assert "not explain what this test measures" in unsupported["answer"]
+    described = answer_question("P001", "What does Hemoglobin measure?", corpus)
+    assert "carries oxygen" in described["answer"]
+    assert any("plain_language" in citation["source_file"] for citation in described["citations"])
+    assert all(citation["source_file"] != "report_P002_Bob_Jones_Liver.md" for citation in described["citations"])
 

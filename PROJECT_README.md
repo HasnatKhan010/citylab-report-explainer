@@ -1,30 +1,83 @@
 # Medical Lab Report Explainer
 
-Challenge B, CityLab Diagnostics, Tech Fusion '26. This app compares one selected report with the ranges, aliases, urgent thresholds, and safety rules supplied by the organizer. It explains those comparisons in English or Urdu. It does not diagnose.
+Challenge B, CityLab Diagnostics, Tech Fusion '26. This app reads a patient's lab report, compares every result with the ranges, aliases, and urgent thresholds supplied by the organizer, explains each one in simple words in English or Urdu, and writes questions for the doctor. It does not diagnose.
 
-The organizer's original `README.md` and every file in `lab_reports/` are kept untouched. This project guide is in `PROJECT_README.md` to preserve that source history and content.
+The organizer's original `README.md` and every file in `lab_reports/` are kept untouched. This project guide lives in `PROJECT_README.md` so that source history and content survive intact.
+
+## What it does, against the four required behaviours
+
+| Required behaviour | Where it happens | Evidence to look at |
+|---|---|---|
+| Read the results and mark each normal / low / high / urgent, watching units | `core/classify.py`, `core/units.py` | `python eval.py` prints all 14 reports with the matched analyte, any conversion working, the status and the rule |
+| Explain in simple words what each test measures and what low or high can mean | `core/plain_language.py`, polished by `llm/` | Any result row in the UI shows "What this test measures" and "What this result can mean" |
+| Handle messy reports: aliases, units, boundaries, missing demographics, unclassifiable tests | `core/names.py`, `core/ingest.py`, `core/service.py` | P002, P005, P008, P003, P012, P006 in the table below |
+| Protect privacy and give 3-5 doctor questions with urgent warnings | `core/service.py`, `core/plain_language.py` | Ask about another patient while a report is active; see the urgent banner on P004 |
 
 ## Architecture
 
 ```mermaid
 flowchart TD
     A[Organizer Markdown files] --> B[Typed parser at startup]
+    P[Report pasted by the user] --> B
     B --> C[Active patient and privacy gate]
-    C --> D[Exact names and file aliases]
-    D --> E[Source-file unit factors]
+    C --> D[Exact names, glossary aliases, panel-scoped names]
+    D --> E[Unit check and cited conversion factors]
     E --> F[Age and sex range lookup]
-    F --> G[Deterministic status and trace]
-    G --> H[Optional LLM wording]
-    H --> I[Strict JSON and safety validator]
-    I --> J[FastAPI and web UI]
-    I --> K[English and Urdu templates]
-    C --> L[Files-only follow-up answer]
-    J --> M[CLI and scorer adapter]
+    F --> G[Deterministic status, urgent rules, full trace]
+    G --> H[Reviewed plain-language wording]
+    H --> I[Optional LLM rewording]
+    I --> J[Strict JSON and safety validator]
+    J --> K[FastAPI and web UI]
+    J --> L[English and Urdu output]
+    G --> M[Doctor questions, urgent first]
+    C --> N[Files-only follow-up answers]
+    K --> O[CLI and scorer adapter]
 ```
 
-The core loads typed Pydantic records from `lab_reports/`. It reads report content only before the compliance appendix, matches test names by case/whitespace/punctuation normalization and exact glossary aliases, uses only explicit conversion factors found in source files, and selects ranges by age and sex. Urgent thresholds are strict and take precedence over low/high classifications. Every classified test includes its range row and rule trace.
+The core loads typed Pydantic records from `lab_reports/`. It reads report content only before the compliance appendix, matches test names by normalization, glossary aliases, and the qualifier the range sheets themselves use, converts units only with an explicit factor that it then shows, and selects ranges by age and sex. Urgent thresholds take precedence over low/high. Every classified result carries its range row and rule trace.
 
-The LLM is optional and only receives the deterministic results plus glossary mappings. It can supply short wording and doctor questions; it cannot set a status, select a range, convert a unit, or generate an urgent warning. Invalid JSON, changed output fields, numeric restatements, diagnosis phrasing, or an invalid question count are rejected. The wording layer retries once, then uses fixed English or Urdu templates. Classification works without provider keys.
+The LLM is optional and never sees raw report text. It receives the deterministic results plus the reviewed wording and may only restate them more simply. It cannot set a status, select a range, convert a unit, or raise an urgent warning. Invalid JSON, changed fields, restated numbers, diagnosis phrasing, or a wrong question count are rejected; the layer retries once, then falls back to the reviewed wording. **Classification is fully deterministic and works with no provider key at all.**
+
+## Verification
+
+`python eval.py` prints one hand-checkable row per test across all 14 sample reports. Every row is correct against the organizer files, including each case the corpus was built to trap:
+
+| Report | What it tests | Result |
+|---|---|---|
+| P002 | Alias plus boundary: SGPT at exactly the female upper limit | matched to ALT, female range, `normal` by the stated edge-case rule |
+| P005 | Unit conversion: Fasting Blood Sugar in mmol/L | converted `6.0 mmol/L x 18.0182 = 108.11 mg/dL`, `high`, working shown |
+| P008 | Short names in a urine panel: `pH Level`, `Protein` | matched to Urine pH and Urine Protein, both `normal` |
+| P003 | Corrupted age and sex | every result `needs_clarification`; nothing guessed from the name |
+| P012 | Missing sex only | `needs_clarification`; the two AST ranges differ by sex |
+| P004 | Urgent plus a separate low result | Hemoglobin `urgent` with the banner, Platelet Count `low` |
+| P006 | Analyte with no range anywhere in the files | `cannot_classify` with the reason given |
+| P010 | Cholesterol at exactly the upper limit | `normal` |
+| P001, P007, P009, P011, P013, P014 | Plain, table, arrow and bullet layouts; aliases Hb, WBC, PLT, FBS, SGOT | all classified against the right range |
+
+`pytest -q` runs 42 tests covering parsing, name matching, units, boundaries, urgent rules, privacy, the LLM validator, the plain-language guard, and the HTTP API.
+
+## Two deliberate departures from "files only", and why
+
+Everything clinical comes from the organizer files, with two documented exceptions. Both are visible in the output rather than hidden.
+
+**1. Unit conversion factors.** The corpus contains no factor table, but the problem statement requires "convert before comparing, and show the conversion", the corpus README lists "different units (e.g., mmol/L instead of mg/dL)" as a checkpoint, and the only report that exercises it is named `..._Sugar_UnitConv.md`. Refusing to convert left that result unclassified. `core/config.py` therefore holds a short list of published analytical constants, each stating its derivation (glucose molar mass 180.156 g/mol gives 18.0182 mg/dL per mmol/L). Any factor parsed from an organizer file takes precedence, and every converted result shows the factor, the arithmetic, and the label "documented standard constant (not from the organizer files)".
+
+**2. Plain-language test descriptions.** The glossary maps aliases; it does not say what a test measures. The problem statement requires exactly that, at a class-8 reading level. `core/plain_language.py` holds reviewed wording for the eleven analytes that appear in the corpus, in English and Urdu, kept apart from the classification code: it cannot set a status, choose a range, or convert a unit. The output labels it as the project team's wording, and a test asserts that no sentence in it can trip the diagnosis-wording guard.
+
+## Known failure cases
+
+- **Boundary assumption outside hematology.** Only the hematology sheet states that a value exactly on a limit is normal. The biochemistry and thyroid/urine sheets are silent, so the same convention is applied to them through one `ENDPOINTS_INCLUSIVE` setting. The trace and the explanation both say so on every affected result.
+- **Urgent limits: the file contradicts itself.** The table says "Less than 7.0", but the same file's prose says a warning is needed when a result "hit[s] or pass[es]" a threshold. The status uses the strict comparison the table states, so Hemoglobin of exactly 7.0 is `low`, not `urgent`; the warning still fires, and the explanation states the conflict. If the official scorer reads that sentence as inclusive, this one boundary case will disagree.
+- **Qualitative results other than the listed value.** The files give Urine Protein a single reference value, "Negative". A result of "Trace" or "Positive" matches no listed value and no rule covers it, so it is reported `cannot_classify` rather than being called abnormal. An unseen test set may expect "high" here.
+- **Conversion covers only the units in and around this corpus.** mmol/L for glucose and cholesterol, g/L to g/dL, the 10^9/L and 10^3/uL family to cells/mcL, and uIU/mL to mIU/L. An unseen unit outside that set is reported `cannot_classify` instead of being guessed.
+- **Panel scoping needs the report to name its panel.** `pH Level` resolves to Urine pH because the report identifies a urine panel in its file name or a heading. A urine report that names neither leaves both short names unclassified, which is the safe failure: `Protein` on its own in a blood panel must not become Urine Protein.
+- **Ages outside every listed band.** The sheets cover 18-100 years. A younger or older patient produces `cannot_classify` for every test rather than borrowing the nearest band.
+- **Missing or corrupted demographics block classification entirely.** P003 and P012 return `needs_clarification` for every result. Nothing is inferred from a patient's name, which is also why "Bob Jones" is correctly treated as female in P002.
+- **Analytes with no range are never explained away.** Serum Ferritin stays `cannot_classify`; the plain-language module also declines to describe a test the files do not list.
+- **Report layout drift.** The parser handles the bullet, table, plain-label and arrow layouts in the corpus, plus pasted text in the same shapes. A materially different unseen layout may yield no results; malformed rows are logged and skipped rather than guessed.
+- **Unknown scorer contract.** The organizers have not published the automated scorer's request or response schema. `adapters/scorer.py` is isolated from the core so only that file needs reshaping when they do.
+- **LLM connectivity is unverified at the provider.** The fallback path, validator, retry, timeout, rate-limit and circuit-breaker logic are all covered by tests, but no provider key was available during local verification, so live rate limits and model-specific JSON compliance still need a keyed smoke test. Every failure falls back to the reviewed wording, so a dead provider degrades wording quality and nothing else.
+- **Text after an appendix heading is ignored**, even if a future report puts real results there.
 
 ## Run locally
 
@@ -37,17 +90,13 @@ python -m uvicorn app.main:app --reload
 
 Open `http://127.0.0.1:8000`. The interactive API reference is at `/docs`.
 
-To run the CLI:
-
 ```powershell
 python -m app.cli analyze P001
 python -m app.cli analyze P004 --language ur
-python -m app.cli ask P001 "What is my Hemoglobin result?"
+python -m app.cli ask P001 "What does Hemoglobin measure?"
 python eval.py
 pytest -q
 ```
-
-`eval.py` prints a hand-checkable row for every test in all 14 sample reports.
 
 ## Run with Docker
 
@@ -55,51 +104,33 @@ pytest -q
 docker compose up --build
 ```
 
-Open `http://localhost:8000`. Docker works without a cloud account; the app uses deterministic wording templates when no provider key is configured. To try an optional free-tier provider, copy `.env.example` to `.env` and add your own key. `.env` is ignored by Git. Never commit a real key.
+Open `http://localhost:8000`. Docker needs no cloud account: with no provider key the app uses the reviewed wording templates and every classification still runs. To try an optional free-tier provider, copy `.env.example` to `.env` and add your own key. `.env` is ignored by Git; never commit a real key.
 
-Provider defaults are configurable in `.env`: Gemini, Groq, then OpenRouter. The HTTP client uses temperature zero, request timeouts, bounded retries with jitter, honors `Retry-After`, opens a short-lived circuit breaker after repeated failures, and caches successful responses by prompt hash. Provider availability and free-tier model names can change; override the model variables when needed.
+## LLM use and tool rules
+
+The rulebook allows free-tier models only. Provider order is configurable in `.env`: Gemini (the tokens the organizers provide on the day), then Groq, then a free OpenRouter model. No model is trained or fine-tuned here, and no pre-built template or earlier project is used. The HTTP client runs at temperature zero with request timeouts, bounded retries with jitter, honours `Retry-After`, opens a short-lived circuit breaker after repeated failures, and caches successful responses by prompt hash, so a free-tier rate limit degrades gracefully instead of failing the request.
 
 ## API
 
 | Method | Route | Request | Purpose |
 |---|---|---|---|
-| `GET` | `/health` | none | Basic health and loaded report count |
+| `GET` | `/health` | none | Health and loaded report count |
 | `GET` | `/patients` | none | Patient IDs only, for the active-report selector |
 | `POST` | `/analyze` | `{"patient_id":"P001","language":"en"}` | Deterministic analysis plus validated wording |
-| `POST` | `/ask` | `{"patient_id":"P001","question":"What is my Hemoglobin result?"}` | Files-only active-patient answer with citations |
+| `POST` | `/analyze-text` | `{"report_text":"...","language":"en"}` | The same analysis for a report pasted by the user |
+| `POST` | `/ask` | `{"patient_id":"P001","question":"..."}` | Files-only answer about the active patient, with citations |
 
-Core functions are `core.analyze_patient(patient_id)` and `core.answer_question(patient_id, question)`. `adapters/scorer.py` is isolated from those functions because the official scorer request and response schema has not been provided. It currently accepts a JSON object with `patient_id`, and `question` for the ask adapter; reshape only that module when organizers publish the contract.
+Core functions are `core.analyze_patient`, `core.analyze_report_text`, and `core.answer_question`.
 
-The app limits the patient listing to IDs. Names and report contents are returned only after a specific patient ID is selected. A request mentioning a different patient's ID or name is refused with a citation to `1_lab_safety_rules.md`.
+`/patients` returns IDs only. Names and report contents are returned only after a specific patient ID is selected, and a question naming any other patient's ID or name is refused with a citation to `1_lab_safety_rules.md`.
 
-## Design decisions
+## Demo route (about 90 seconds)
 
-- Deterministic classification always runs before explanation. Provider failures never change the clinical status.
-- Unsupported names, ranges, and units are reported as `cannot_classify`; no outside ranges or conversion constants are added.
-- Missing, corrupted, or invalid age/sex produces `needs_clarification` for every test in that report. Ages outside every supplied range produce `cannot_classify`.
-- The hematology sheet says range endpoints are normal. For the other range sheets, the same convention is applied through `ENDPOINTS_INCLUSIVE` and the trace/explanation state this assumption.
-- Report parsing is limited to the known bullet, table, plain-label, and arrow layouts. Free-form text and appendix text are not instructions.
-- The supplied glossary contains aliases, not definitions of what each test measures. Explanations therefore describe only the comparison supported by the file rows.
-
-## Known Failure Cases
-
-- **Boundary assumption outside hematology:** Biochemistry and thyroid/urine sheets do not state endpoint inclusivity. The hematology rule is applied to those ranges by the single `ENDPOINTS_INCLUSIVE` setting. This is an explicit assumption, not source-sheet guidance.
-- **No unit conversion factors:** The corpus contains no conversion factor table. Fasting Blood Sugar reported as `6.0 mmol/L` cannot be converted to the `mg/dL` range and remains `cannot_classify`.
-- **P008 short names have no section context:** `pH Level` and `Protein` appear under the generic `SECTION III: ANALYTICAL RESULTS` heading. The file name contains “Urine,” but it is not used as a test alias or section heading. Both values remain `cannot_classify` until the source provides an explicit alias or clearly urine-scoped section.
-- **Missing or corrupted demographics:** P003 has corrupted age and sex; P012 has no sex. Their results are not classified until the missing demographics are provided. No values are inferred from names.
-- **Unknown analytes:** Serum Ferritin appears in P006 but has no matching range in the files, so it remains `cannot_classify`.
-- **No test definitions:** The medical glossary maps names only. The app does not describe test physiology or claim what a high/low result means medically; that information is not in the supplied files.
-- **Unknown scorer contract:** Organizers have not supplied the automated scorer's endpoint, request fields, or response schema. The isolated scorer adapter is provisional.
-- **Report layout drift:** The parser handles the 14 supplied report layouts. A materially different unseen layout may be skipped or require a parser update; malformed rows are logged and skipped.
-- **LLM limits:** No real provider key was available during local verification. Provider requests are covered by fallback behavior and client logic, but live provider connectivity, rate limits, and model-specific JSON compliance still need a keyed smoke test. Failed or rejected output falls back to templates.
-- **Appendix placement:** Text after a report's appendix heading is excluded, even if a future report places real results there.
-
-## Demo video script (about 60 seconds)
-
-1. Select P002 and show SGPT matching ALT, the female range, the endpoint classification, and the source trace.
-2. Select P004 and show the urgent banner and the separate low platelet result.
-3. Select P003 and show the request for missing age and sex, without a classification.
-4. Select P005 and show that mmol/L is not converted because the files contain no factor.
-5. Switch to Urdu and show the wording fallback; ask a question naming P002 while P001 is active to demonstrate the privacy refusal and citation.
-6. End by showing Docker Compose as the one-command local run path and the `KNOWN FAILURE CASES` section.
-
+1. P002: SGPT matched to ALT, the female range, the exact-limit rule, and the source trace.
+2. P005: the mmol/L conversion with its factor and arithmetic shown, classified `high`.
+3. P004: the urgent banner, the separate low platelet result, and the doctor questions led by the urgent one.
+4. P003: a request for the missing age and sex, with no classification attempted.
+5. P008: `pH Level` and `Protein` resolved through the urine panel.
+6. Switch to Urdu, then ask about another patient while P001 is active to show the refusal and its citation.
+7. Paste a report that is not in the corpus and explain it.
+8. Close on `docker compose up --build` as the one-command run path and the known failure cases above.

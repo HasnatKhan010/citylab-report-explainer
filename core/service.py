@@ -168,7 +168,7 @@ def _other_patient_mentioned(patient_id: str, question: str, corpus: Corpus) -> 
     return None
 
 
-def answer_question(patient_id: str, question: str, corpus: Corpus | None = None) -> dict:
+def answer_question(patient_id: str, question: str, corpus: Corpus | None = None, language: str = "en") -> dict:
     """Answer from the active patient's parsed report, ranges, and glossary only."""
     corpus = corpus or _default_corpus()
     key = patient_id.strip().upper()
@@ -183,7 +183,7 @@ def answer_question(patient_id: str, question: str, corpus: Corpus | None = None
             "citations": [{"source_file": "1_lab_safety_rules.md", "rule": "Core Operational Directives, rule 1"}],
         }
 
-    analysis = analyze_patient(key, corpus)
+    analysis = analyze_patient(key, corpus, language)
     normalized_question = normalize_name(question)
     matched = []
     for row in analysis["tests"]:
@@ -192,10 +192,16 @@ def answer_question(patient_id: str, question: str, corpus: Corpus | None = None
             matched.append(row)
 
     if matched:
-        # The corpus has alias mappings but no plain-language descriptions of tests.
-        if re.search(r"\b(?:meaning|definition|define|function of)\b|\bwhat does\b.*\bmeasure", question, re.I):
-            answer = "The files do not explain what this test measures or what its result may mean."
-            citations = [{"source_file": "2_medical_glossary.md", "detail": "The glossary lists aliases only."}]
+        if re.search(r"\b(?:meaning|means|mean|definition|define|function of|measure[sd]?)\b", question, re.I):
+            answer = " ".join(
+                f"{row['original_name']}: {row['what_it_measures']} {row['what_this_result_can_mean']}"
+                for row in matched
+            )
+            citations = [
+                {"source_file": analysis["source_file"]},
+                {"source_file": "2_medical_glossary.md", "detail": "Alias mapping only."},
+                {"source_file": "core/plain_language.py", "detail": ATTRIBUTION},
+            ]
         else:
             parts = [
                 f"{row['original_name']}: {row['value']} {row['original_unit']} - {row['status']} ({row['reason']})"
