@@ -48,3 +48,9 @@ def test_scorer_adapter_is_small_and_html_is_served():
     assert scorer_ask({"patient_id": "P001", "question": "What is my report?"})["patient_id"] == "P001"
     assert "اردو" in request("GET", "/").text
 
+
+def test_urdu_language_returns_urdu_explanation():
+    response = request("POST", "/analyze", json={"patient_id": "P004", "language": "ur"})
+    assert response.status_code == 200
+    assert "ڈاکٹر" in response.json()["tests"][0]["explanation"]
+
