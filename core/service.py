@@ -10,7 +10,7 @@ from core.classify import classify_result
 from core.ingest import DEFAULT_DATA_DIR, load_corpus, parse_report_text
 from core.models import Corpus, PatientReport
 from core.names import canonical_name, normalize_name
-from core.plain_language import ATTRIBUTION, describes, doctor_questions, result_meaning
+from core.plain_language import ATTRIBUTION, describes, doctor_questions, result_meaning, urgent_banner
 from core.ranges import supported_age_bounds
 
 
@@ -126,14 +126,14 @@ def _analyze_report(patient: PatientReport, corpus: Corpus, language: str = "en"
     urgent_warnings = [
         {
             "test": row["canonical_name"] or row["original_name"],
-            "message": "A result crossed a critical limit listed in the files. Please see a doctor today.",
+            "message": urgent_banner("crossed", language),
         }
         for row in rows if row["urgent_flag"]
     ]
     urgent_warnings.extend(
         {
             "test": row["canonical_name"] or row["original_name"],
-            "message": "A result sits exactly on a critical limit listed in the files. Please see a doctor today.",
+            "message": urgent_banner("on_limit", language),
         }
         for row in rows if row.get("on_critical_limit") and not row["urgent_flag"]
     )

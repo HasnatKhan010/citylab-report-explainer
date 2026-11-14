@@ -234,3 +234,19 @@ def doctor_questions(rows: list[dict], language: str = "en") -> list[str]:
         if extra not in questions:
             questions.append(extra)
     return questions[:5]
+
+
+BANNER = {
+    "en": {
+        "crossed": "A result crossed a critical limit listed in the files. Please see a doctor today.",
+        "on_limit": "A result sits exactly on a critical limit listed in the files. Please see a doctor today.",
+    },
+    "ur": {
+        "crossed": "ایک نتیجہ فائل میں درج اہم حد عبور کر گیا ہے۔ آج ہی ڈاکٹر سے رابطہ کریں۔",
+        "on_limit": "ایک نتیجہ فائل میں درج اہم حد پر بالکل موجود ہے۔ آج ہی ڈاکٹر سے رابطہ کریں۔",
+    },
+}
+
+
+def urgent_banner(kind: str, language: str = "en") -> str:
+    return BANNER.get(language, BANNER["en"]).get(kind, BANNER["en"][kind])

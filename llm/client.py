@@ -7,14 +7,33 @@ import hashlib
 import logging
 import os
 import random
+import ssl
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
+import certifi
 import httpx
 
 logger = logging.getLogger(__name__)
+
+def _tls_context() -> ssl.SSLContext:
+    """Verify provider certificates against whichever store this machine trusts.
+
+    Certifi covers containers and clean installs. Where a local proxy or antivirus
+    terminates TLS, only the operating system store holds its certificate, so that
+    store is preferred when truststore is available. Verification is never disabled.
+    """
+    try:
+        import truststore
+
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception:
+        return ssl.create_default_context(cafile=certifi.where())
+
+
+TLS_CONTEXT = _tls_context()
 
 
 @dataclass(frozen=True)
@@ -62,7 +81,7 @@ class LLMClient:
     def _providers() -> list[Provider]:
         providers = [
             Provider("gemini", os.getenv("GEMINI_API_KEY", "").strip(), os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip(), ""),
-            Provider("groq", os.getenv("GROQ_API_KEY", "").strip(), os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip(), "https://api.groq.com/openai/v1/chat/completions"),
+            Provider("groq", os.getenv("GROQ_API_KEY", "").strip(), os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip(), "https://api.groq.com/openai/v1/chat/completions"),
             Provider("openrouter", os.getenv("OPENROUTER_API_KEY", "").strip(), os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free").strip(), "https://openrouter.ai/api/v1/chat/completions"),
         ]
         return [provider for provider in providers if provider.key and provider.model]
@@ -132,7 +151,7 @@ class LLMClient:
                     {"role": "user", "content": user_prompt},
                 ],
             }
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+        async with httpx.AsyncClient(timeout=self.timeout_seconds, verify=TLS_CONTEXT) as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()

@@ -60,7 +60,12 @@ def validate_explanation(raw: str, results: list[dict]) -> ExplanationOutput:
         for unit in (row.get("original_unit", ""), row.get("converted_unit", "")):
             if unit and re.search(re.escape(unit), text, re.I):
                 raise InvalidLLMOutput("Explanation must not restate or change values or units.")
-        status_terms = set(re.findall(r"\b(?:normal|low|high|urgent|cannot classify|needs clarification)\b", text, re.I))
+        # "above the normal range" names the interval, not the status; only a bare
+        # status word that disagrees with the deterministic one is a conflict.
+        status_terms = set(re.findall(
+            r"\b(normal|low|high|urgent|cannot classify|needs clarification)\b"
+            r"(?!\s+(?:range|ranges|limit|limits|band|bands|value|values|reading|readings))",
+            text, re.I))
         allowed = row["status"].replace("_", " ").casefold()
         if any(term.casefold() != allowed for term in status_terms):
             raise InvalidLLMOutput("Explanation conflicts with a deterministic status.")
