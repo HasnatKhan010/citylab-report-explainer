@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CityLab Report Explainer</title>
+  <style>
+    :root { color-scheme: light; --ink:#172a3a; --muted:#617385; --line:#dce5ec; --paper:#fff; --wash:#f2f6f8; --blue:#175e72; }
+    * { box-sizing:border-box }
+    body { margin:0; font:16px/1.5 system-ui,Segoe UI,sans-serif; color:var(--ink); background:var(--wash) }
+    header { background:#123b4a; color:white; padding:22px max(20px,calc((100vw - 1160px)/2)); }
+    header h1 { margin:0; font-size:1.45rem; letter-spacing:.01em }
+    header p { margin:5px 0 0; color:#d4e8ee; max-width:70ch }
+    main { max-width:1160px; margin:24px auto; padding:0 18px 42px }
+    .toolbar,.panel,.results { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:0 5px 20px #163b4a0a; }
+    .toolbar { display:flex; gap:14px; align-items:end; flex-wrap:wrap }
+    label { display:grid; gap:6px; font-weight:650; color:#314859 }
+    select,input,button { font:inherit; border-radius:9px; border:1px solid #bdccd6; padding:10px 12px; background:white; color:var(--ink) }
+    select { min-width:180px }
+    button { cursor:pointer; background:var(--blue); border-color:var(--blue); color:white; font-weight:650 }
+    button.secondary { background:white; color:var(--blue) }
+    button:disabled { opacity:.55; cursor:wait }
+    #patientSummary { margin:18px 0 0; color:var(--muted) }
+    #urgent { display:none; margin:16px 0; padding:14px 16px; border-radius:11px; color:#78250e; background:#fff0e8; border:1px solid #f2b69b; font-weight:750 }
+    .results { margin-top:16px; overflow:hidden; padding:0 }
+    .results h2,.panel h2 { font-size:1.08rem; margin:0 0 12px }
+    .results h2 { padding:18px 18px 0 }
+    .tableWrap { overflow:auto }
+    table { width:100%; border-collapse:collapse; min-width:700px }
+    th,td { text-align:left; vertical-align:top; padding:12px 14px; border-top:1px solid var(--line) }
+    th { font-size:.82rem; color:var(--muted); background:#f8fafb; text-transform:uppercase; letter-spacing:.04em }
+    td small { display:block; color:var(--muted); margin-top:4px }
+    .badge { display:inline-block; border-radius:999px; padding:3px 9px; font-size:.82rem; font-weight:750; text-transform:capitalize; white-space:nowrap }
+    .normal { color:#126139; background:#e4f5eb }.low,.high { color:#81540b; background:#fff3d5 }.urgent { color:#8c260d; background:#ffe4d9 }.cannot_classify,.needs_clarification { color:#4f5875; background:#eceef8 }
+    details { margin-top:6px; color:var(--muted); font-size:.9rem }
+    .columns { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px }
+    .panel { margin-top:16px }
+    .columns .panel { margin:0 }
+    .panel ul { margin:0; padding-left:20px }
+    .panel li+li { margin-top:7px }
+    #askForm { display:flex; gap:8px; flex-wrap:wrap }
+    #askQuestion { flex:1; min-width:240px }
+    #answer { white-space:pre-wrap; margin-top:12px }
+    #disclaimer { color:var(--muted); font-size:.9rem; margin:16px 2px }
+    [dir="rtl"] .tableWrap, [dir="rtl"] .columns, [dir="rtl"] .panel { text-align:right }
+    @media(max-width:720px) { .columns { grid-template-columns:1fr } main { margin-top:14px } }
+    @media print { body { background:white } header { background:white; color:var(--ink); padding:0 0 10px } header p { color:var(--muted) } .toolbar,#askPanel,button { display:none!important } main { margin:0; max-width:none; padding:0 } .panel,.results { box-shadow:none; break-inside:avoid } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CityLab Medical Report Explainer</h1>
+    <p id="subtitle">A files-only comparison of one active patient's report with the supplied laboratory ranges.</p>
+  </header>
+  <main>
+    <section class="toolbar" aria-label="Report controls">
+      <label><span id="patientLabel">Active report</span><select id="patient"></select></label>
+      <label><span id="languageLabel">Explanation language</span><select id="language"><option value="en">English</option><option value="ur">اردو</option></select></label>
+      <button id="analyze">Analyze report</button>
+      <button id="print" class="secondary" type="button">Print summary</button>
+    </section>
+    <p id="patientSummary"></p>
+    <div id="urgent" role="alert"></div>
+    <section class="results">
+      <h2 id="resultsTitle">Test results</h2>
+      <div class="tableWrap"><table>
+        <thead><tr><th>Test</th><th>Value</th><th>Status</th><th>Explanation</th></tr></thead>
+        <tbody id="resultsBody"></tbody>
+      </table></div>
+    </section>
+    <div class="columns">
+      <section class="panel" id="attentionPanel"><h2>Needs attention</h2><ul id="attentionList"></ul></section>
+      <section class="panel" id="questionsPanel"><h2>Questions for the doctor</h2><ul id="doctorQuestions"></ul></section>
+    </div>
+    <section class="panel" id="askPanel">
+      <h2>Ask about this active report</h2>
+      <form id="askForm"><input id="askQuestion" maxlength="1000" placeholder="Ask a question about this report" required><button id="askButton">Ask</button></form>
+      <div id="answer" aria-live="polite"></div>
+    </section>
+    <p id="disclaimer"></p>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const strings = {
+      en:{patient:"Active report",language:"Explanation language",analyze:"Analyze report",results:"Test results",attention:"Needs attention",questions:"Questions for the doctor",ask:"Ask about this active report",disclaimer:"This comparison does not diagnose. Only a licensed doctor can diagnose.",subtitle:"A files-only comparison of one active patient's report with the supplied laboratory ranges."},
+      ur:{patient:"فعال رپورٹ",language:"وضاحت کی زبان",analyze:"رپورٹ دیکھیں",results:"ٹیسٹ کے نتائج",attention:"مزید وضاحت درکار",questions:"ڈاکٹر سے پوچھنے کے سوالات",ask:"اس فعال رپورٹ کے بارے میں پوچھیں",disclaimer:"یہ موازنہ تشخیص نہیں کرتا۔ صرف مستند ڈاکٹر تشخیص کر سکتا ہے۔",subtitle:"ایک فعال مریض کی رپورٹ کا فراہم کردہ لیبارٹری حدود سے موازنہ۔"}
+    };
+    function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
+    function setLanguage(lang){const s=strings[lang]||strings.en; document.documentElement.lang=lang;document.documentElement.dir=lang==="ur"?"rtl":"ltr";$('patientLabel').textContent=s.patient;$('languageLabel').textContent=s.language;$('analyze').textContent=s.analyze;$('resultsTitle').textContent=s.results;$('attentionPanel').querySelector('h2').textContent=s.attention;$('questionsPanel').querySelector('h2').textContent=s.questions;$('askPanel').querySelector('h2').textContent=s.ask;$('disclaimer').textContent=s.disclaimer;$('subtitle').textContent=s.subtitle}
+    async function loadPatients(){const r=await fetch('/patients');if(!r.ok)throw new Error('Could not load reports.');const patients=await r.json();$('patient').innerHTML=patients.map(p=>`<option value="${esc(p.patient_id)}">${esc(p.patient_id)}</option>`).join('')}
+    async function analyze(){const id=$('patient').value;if(!id)return;const button=$('analyze');button.disabled=true;$('resultsBody').innerHTML='';$('urgent').style.display='none';try{const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_id:id,language:$('language').value})});const data=await r.json();if(!r.ok)throw new Error(data.detail||'Unable to analyze report.');$('patientSummary').textContent=`${data.patient_name} · ${data.age??'Age needed'} · ${data.biological_sex??'Sex needed'}`;$('resultsBody').innerHTML=data.tests.map(t=>`<tr><td>${esc(t.original_name)}${t.canonical_name&&t.canonical_name!==t.original_name?`<small>Matched to ${esc(t.canonical_name)}</small>`:''}<details><summary>Source and rule</summary>${(t.trace||[]).map(x=>`<div>${esc(x)}</div>`).join('')}</details></td><td>${esc(t.value)} ${esc(t.original_unit)}</td><td><span class="badge ${esc(t.status)}">${esc(t.status.replaceAll('_',' '))}</span></td><td>${esc(t.explanation)}</td></tr>`).join('');if(data.urgent_warnings.length){$('urgent').innerHTML=data.urgent_warnings.map(w=>esc(w.message)).join('<br>');$('urgent').style.display='block'}const attention=[...(data.cannot_classify||[]).map(x=>`${x.test}: ${x.reason}`)];if(data.clarification_question)attention.push(data.clarification_question);$('attentionList').innerHTML=attention.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>None</li>';$('doctorQuestions').innerHTML=(data.doctor_questions||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li>None</li>';$('disclaimer').textContent=data.disclaimer;}catch(e){$('patientSummary').textContent=e.message}finally{button.disabled=false}}
+    $('analyze').addEventListener('click',analyze);$('patient').addEventListener('change',analyze);$('language').addEventListener('change',()=>{setLanguage($('language').value);analyze()});$('print').addEventListener('click',()=>window.print());
+    $('askForm').addEventListener('submit',async e=>{e.preventDefault();$('answer').textContent='…';try{const r=await fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient_id:$('patient').value,question:$('askQuestion').value})});const data=await r.json();if(!r.ok)throw new Error(data.detail||'Unable to answer.');$('answer').textContent=data.answer+'\n'+(data.citations||[]).map(c=>`Source: ${c.source_file}${c.rule?` (${c.rule})`:''}`).join('\n')}catch(err){$('answer').textContent=err.message}});
+    setLanguage('en');loadPatients().then(analyze).catch(e=>{$('patientSummary').textContent=e.message});
+  </script>
+</body>
+</html>

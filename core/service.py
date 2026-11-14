@@ -18,6 +18,11 @@ def _default_corpus() -> Corpus:
     return load_corpus(DEFAULT_DATA_DIR)
 
 
+def get_corpus() -> Corpus:
+    """Return the lazily parsed default organizer corpus."""
+    return _default_corpus()
+
+
 def _status_for_demographics(patient: PatientReport) -> tuple[bool, str | None]:
     missing: list[str] = []
     if patient.age is None:
@@ -161,7 +166,7 @@ def answer_question(patient_id: str, question: str, corpus: Corpus | None = None
             citations = [{"source_file": "2_medical_glossary.md", "detail": "The glossary lists aliases only."}]
         else:
             parts = [
-                f"{row['original_name']}: {row['value']} {row['original_unit']} — {row['status']} ({row['reason']})"
+                f"{row['original_name']}: {row['value']} {row['original_unit']} - {row['status']} ({row['reason']})"
                 for row in matched
             ]
             answer = " ".join(parts)
